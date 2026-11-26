@@ -63,6 +63,22 @@ for (const f of fs.readdirSync(path.join(here, "js"))) {
 }
 fs.cpSync(path.join(here, "icons"), path.join(out, "icons"), { recursive: true });
 
+// Icon tinting: see chrome/css/chromium.css. `context-fill` is Firefox-only
+// too; bake in a dark fill (the dark theme already inverts these icons).
+fs.appendFileSync(path.join(out, "css", "popup.css"), fs.readFileSync(path.join(here, "css", "chromium.css")));
+for (const f of fs.readdirSync(path.join(out, "img"), { recursive: true })) {
+  if (!String(f).endsWith(".svg")) continue;
+  const file = path.join(out, "img", String(f));
+  const svg = fs.readFileSync(file, "utf8");
+  const fixed = svg
+    .replace(/\s*fill-opacity="context-fill-opacity"/g, "")
+    .replace(/\s*stroke-opacity="context-stroke-opacity"/g, "")
+    .replace(/context-(?:fill|stroke) light-dark\(\s*([^,]+),[^)]*\)/g, "$1")
+    .replace(/context-(?:fill|stroke) (#[0-9a-fA-F]+|[a-z]+)/g, "$1")
+    .replace(/context-(?:fill|stroke)/g, "#0c0c0d");
+  if (fixed !== svg) fs.writeFileSync(file, fixed);
+}
+
 // Every extension page gets the polyfill + compat shim before its own scripts;
 // the background page also gets the isolation engine.
 function walk(dir) {

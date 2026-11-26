@@ -126,7 +126,8 @@ try {
   const jar2 = await B("browser.cookies.getAll({}).then(l => l.map(c => c.name))");
   check("removing a container purges its cookies", !jar2.some((n) => n.startsWith("MACC3~")), jar2);
 
-  // Popup renders.
+  // Popup renders (skip the first-run onboarding panels).
+  await B(`browser.storage.local.set({"onboarding-stage": 8})`);
   const popupTab = await B(`browser.tabs.create({url: "chrome-extension://${extId}/popup.html"}).then(t => t.id)`);
   await settle();
   const popT = (await c.targets()).find((t) => t.url.endsWith("/popup.html"));
@@ -136,6 +137,8 @@ try {
   await sleep(500);
   const shot = await c.send("Page.captureScreenshot", { format: "png" }, pop);
   fs.writeFileSync(process.env.SHOT || "popup.png", Buffer.from(shot.data, "base64"));
+  const rows = await c.evaluate(pop, "[...document.querySelectorAll('#identities-list .menu-item-name, .identities-list .menu-item-name, [data-identity-cookie-store-id]')].map(e => e.textContent.trim()).filter(Boolean)");
+  check("popup lists containers", rows.join(" ").includes("Work") && rows.join(" ").includes("Test"), rows);
   void popupTab;
 } catch (e) {
   failed++;
