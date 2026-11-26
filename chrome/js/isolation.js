@@ -498,7 +498,11 @@
     if (!msg || msg.__macc !== "ctx" || !sender.tab || sender.frameId !== 0) return undefined;
     const tabId = sender.tab.id;
     const origin = originOf(sender.url || "");
-    if (!origin || pendingCommit.has(tabId)) return undefined;
+    const border = () => (globalThis.__maccHighlight ? globalThis.__maccHighlight.borderColorForTab(tabId) : null);
+    if (!origin || pendingCommit.has(tabId)) {
+      respond({ border: border() });
+      return undefined;
+    }
 
     // Session restore: the restored page still knows its container.
     if (!tabs.has(tabId) && startupTabs.has(tabId) && Date.now() - startedAt < 120000
@@ -511,12 +515,14 @@
     }
 
     const expected = containerOf(tabId);
-    if (msg.n === expected) return undefined;
     const last = recentReloads.get(tabId) || 0;
-    if (Date.now() - last < 15000) return undefined;
+    if (msg.n === expected || Date.now() - last < 15000) {
+      respond({ border: border() });
+      return undefined;
+    }
     recentReloads.set(tabId, Date.now());
     if (msg.header) {
-      reload(tabId);
+      respond({ reload: true });
       return undefined;
     }
     // The document never reached the network (service worker or cache):

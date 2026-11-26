@@ -98,14 +98,14 @@ for (const file of walk(out)) {
   const rel = path.relative(path.dirname(file), jsOut).split(path.sep).join("/");
   const scripts = ["browser-polyfill.js", "compat.js"];
   if (file === path.join(out, "js", "background", "index.html")) {
-    scripts.push("tldts.js", "purge.js", "isolation.js", "proxy.js");
+    scripts.push("tldts.js", "purge.js", "isolation.js", "proxy.js", "highlight.js");
   }
   const tags = scripts.map((s) => `<script src="${rel}/${s}"></script>`).join("\n    ");
   const at = html.search(/<script\b/i);
   if (at < 0) continue;
   html = `${html.slice(0, at)}${tags}\n    ${html.slice(at)}`;
   if (file === path.join(out, "options.html")) {
-    html = html.replace("</body>", `  <script src="${rel}/options-proxy.js"></script>\n  </body>`);
+    html = html.replace("</body>", `  <script src="${rel}/options-chromium.js"></script>\n  </body>`);
   }
   fs.writeFileSync(file, html);
 }
@@ -167,9 +167,24 @@ fs.writeFileSync(path.join(out, "manifest.json"), `${JSON.stringify(manifest, nu
 
 console.log(`built ${path.relative(root, out)} (v${manifest.version})`);
 
+// Tab-group companion (MV3): chrome.tabGroups isn't available to MV2.
+const companionSrc = path.join(here, "tabgroups-companion");
+const companionOut = path.join(root, "dist", "chromium-tabgroups");
+fs.rmSync(companionOut, { recursive: true, force: true });
+fs.cpSync(companionSrc, companionOut, { recursive: true });
+fs.cpSync(path.join(here, "icons"), path.join(companionOut, "icons"), { recursive: true });
+const companionManifest = JSON.parse(fs.readFileSync(path.join(companionSrc, "manifest.json"), "utf8"));
+companionManifest.key = fs.readFileSync(path.join(here, "tabgroups-companion-key.pub"), "utf8").trim();
+fs.writeFileSync(path.join(companionOut, "manifest.json"), `${JSON.stringify(companionManifest, null, 2)}\n`);
+console.log(`built ${path.relative(root, companionOut)} (v${companionManifest.version})`);
+
 if (process.argv.includes("--zip")) {
   const zip = path.join(root, "dist", `multi-account-containers-chromium-${manifest.version}.zip`);
   fs.rmSync(zip, { force: true });
   execFileSync("zip", ["-qr", zip, "."], { cwd: out });
   console.log(`packed ${path.relative(root, zip)}`);
+  const czip = path.join(root, "dist", `multi-account-containers-chromium-tabgroups-${companionManifest.version}.zip`);
+  fs.rmSync(czip, { force: true });
+  execFileSync("zip", ["-qr", czip, "."], { cwd: companionOut });
+  console.log(`packed ${path.relative(root, czip)}`);
 }

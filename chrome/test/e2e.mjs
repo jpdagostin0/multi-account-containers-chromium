@@ -12,6 +12,7 @@ import { launch, extDir, sleep } from "./cdp.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const EXT_ID = "onhincpcieoahedkojoldccglpaokjln";
+const COMPANION_ID = "jeedhomnaldfldmfkfekpifefpfcpbll";
 const LAN = execFileSync("ip", ["-4", "route", "get", "1.1.1.1"]).toString().match(/src (\S+)/)[1];
 const ORIGIN = "http://127.0.0.1:8765";
 const ALT = "http://localhost:8765";
@@ -56,6 +57,8 @@ await sleep(1500);
 async function session(c, { withErrors = true } = {}) {
   const { id } = await c.send("Extensions.loadUnpacked", { path: extDir });
   check("extension id pinned by manifest key", id === EXT_ID, id);
+  const { id: cid } = await c.send("Extensions.loadUnpacked", { path: path.resolve(extDir, "..", "chromium-tabgroups") });
+  check("tab group companion id pinned", cid === COMPANION_ID, cid);
   await sleep(1500);
   const bgT = (await c.targets()).find((t) => t.url === `chrome-extension://${id}/js/background/index.html`);
   const bg = await c.attach(bgT.targetId);
@@ -144,6 +147,30 @@ async function session(c, { withErrors = true } = {}) {
 
     const cs = await P(work, "cookieStore.getAll().then(l => l.map(c => c.name).sort())");
     check("cookieStore filtered", JSON.stringify(cs) === JSON.stringify(["js", "sid"]), cs);
+
+    // Highlighting: colored tab group + page border.
+    await B("__maccHighlight.syncAll()");
+    await sleep(500);
+    const frameColor = (s) => P(s, "(document.querySelector('macc-container-frame') || {dataset: {}}).dataset.color || null");
+    check("container page has a border in its color", (await frameColor(work)) === "#ff9f00", await frameColor(work));
+    check("default page has no border", (await frameColor(def)) === null, await frameColor(def));
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 800, height: 500, deviceScaleFactor: 1, mobile: false }, work);
+    const borderShot = await c.send("Page.captureScreenshot", { format: "png" }, work);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-border.png"), Buffer.from(borderShot.data, "base64"));
+    const gid = await B(`browser.tabs.get(${workTab}).then(t => t.groupId)`);
+    const group = gid >= 0 ? await B(`new Promise(r => chrome.runtime.sendMessage("${COMPANION_ID}", {op: "get", groupId: ${gid}}, r)).then(x => x.group)`) : null;
+    check("container tab is in a tab group named and colored after it", group && group.title === "Work" && group.color === "orange", group);
+    check("default tab is not grouped", (await B(`browser.tabs.get(${defTab}).then(t => t.groupId)`)) === -1);
+    await B(`browser.contextualIdentities.update("firefox-container-2", {name: "Work!", color: "purple"})`);
+    await sleep(500);
+    const group2 = await B(`new Promise(r => chrome.runtime.sendMessage("${COMPANION_ID}", {op: "get", groupId: ${gid}}, r)).then(x => x.group)`);
+    check("renaming/recoloring a container restyles its group", group2.title === "Work!" && group2.color === "purple", group2);
+    check("…and its page border", (await frameColor(work)) === "#af51f5", await frameColor(work));
+    await B(`browser.contextualIdentities.update("firefox-container-2", {name: "Work", color: "orange"})`);
+    await B("__maccHighlight.setSettings({pageBorder: false})");
+    await sleep(500);
+    check("page border can be turned off", (await frameColor(work)) === null);
+    await B("__maccHighlight.setSettings({pageBorder: true})");
 
     // HTTP cache: a personalised, cacheable response must not cross containers.
     const cachedWork = await P(work, "fetch('/cached').then(r => r.text())");

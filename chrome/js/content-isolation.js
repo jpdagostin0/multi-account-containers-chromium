@@ -334,6 +334,39 @@
   (document.documentElement || document).appendChild(script);
   script.remove();
 
+  // Optional colored frame around container pages (see highlight.js).
+  let frame = null;
+  let keeper = null;
+  function setBorder(color) {
+    if (!color) {
+      if (keeper) keeper.disconnect();
+      if (frame) frame.remove();
+      frame = keeper = null;
+      return;
+    }
+    if (!frame) {
+      frame = document.createElement("macc-container-frame");
+      const root = frame.attachShadow({ mode: "closed" });
+      const box = document.createElement("div");
+      box.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:2147483647;"
+        + "box-sizing:border-box;border:3px solid var(--c);border-radius:0;";
+      root.append(box);
+      frame.style.cssText = "all:initial;position:fixed;inset:0;pointer-events:none;z-index:2147483647;";
+      // Pages that rebuild <html> or <body> shouldn't be able to drop it.
+      keeper = new MutationObserver(() => {
+        if (!frame) return;
+        if (document.documentElement) keeper.observe(document.documentElement, { childList: true });
+        if (!frame.isConnected) (document.documentElement || document).appendChild(frame);
+      });
+      keeper.observe(document, { childList: true });
+      if (document.documentElement) keeper.observe(document.documentElement, { childList: true });
+    }
+    frame.style.setProperty("--c", color);
+    frame.dataset.color = color;
+    if (!frame.isConnected) (document.documentElement || document).appendChild(frame);
+  }
+  if (window === window.top) window.__maccSetBorder = setBorder;
+
   if (window === window.top) {
     let header = null;
     try {
@@ -346,6 +379,7 @@
       chrome.runtime.sendMessage({ __macc: "ctx", n, header: header !== null, marker }, (res) => {
         void chrome.runtime.lastError;
         if (!res) return;
+        if (res.border !== undefined) setBorder(res.border);
         if (res.marker !== undefined) {
           try {
             sessionStorage.setItem("MACC0~ctx", JSON.stringify({ n: res.marker, block: true }));
