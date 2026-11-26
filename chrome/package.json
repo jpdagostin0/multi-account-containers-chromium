@@ -1,0 +1,12 @@
+{
+  "name": "multi-account-containers-chromium-build",
+  "private": true,
+  "description": "Chromium (MV2) build of Multi-Account Containers",
+  "license": "MPL-2.0",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "webextension-polyfill": "^0.12.0"
+  }
+}

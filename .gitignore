@@ -16,3 +16,5 @@ web-ext-artifacts
 # IstanbulJS
 .nyc_output
 coverage
+# Chromium build output
+dist/
