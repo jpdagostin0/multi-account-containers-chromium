@@ -9,9 +9,10 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const extDir = path.resolve(here, "../../dist/chromium");
 
-export async function launch({ browser = process.env.BROWSER || "helium", headless = true } = {}) {
+export async function launch({ browser = process.env.BROWSER || "helium", headless = true, args: extra = [], prepare } = {}) {
   const profile = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), "macc-prof-"));
-  const args = [
+  if (prepare) prepare(profile);
+  const args = [...extra,
     `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check",
     "--remote-debugging-pipe", "--enable-unsafe-extension-debugging",
     "--window-size=1280,900",

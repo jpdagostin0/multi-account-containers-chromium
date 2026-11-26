@@ -443,11 +443,8 @@
       return iso().purgeCookies(options.cookieStoreId || DEFAULT, options.hostnames);
     },
     async removeLocalStorage(options = {}) {
-      // Chromium can't scope this to a container: wipe the origins outright.
-      if (!base.browsingData) return;
-      const origins = (options.hostnames || []).flatMap((h) => [`https://${h}`, `http://${h}`]);
-      if (!origins.length) return;
-      return base.browsingData.removeLocalStorage({ origins });
+      // Wipes only this container's page storage (see isolation.js).
+      return iso().purgeStorage(options.cookieStoreId || DEFAULT, options.hostnames);
     },
   };
 
@@ -532,9 +529,9 @@
     commands,
     runtime,
     webRequest,
-    // Chromium's proxy API has no per-request hook; hide it so the
-    // Mozilla VPN / proxy features stay off.
-    proxy: undefined,
+    // The background's Firefox proxy.onRequest hook doesn't exist here;
+    // js/chrome/proxy.js does per-container routing instead.
+    proxy: isBackground ? undefined : base.proxy,
   };
 
   globalThis.browser = new Proxy(base, {

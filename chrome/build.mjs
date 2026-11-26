@@ -58,6 +58,10 @@ for (const entry of fs.readdirSync(locales, { withFileTypes: true })) {
 const jsOut = path.join(out, "js", "chrome");
 fs.mkdirSync(jsOut, { recursive: true });
 fs.copyFileSync(polyfill, path.join(jsOut, "browser-polyfill.js"));
+fs.copyFileSync(path.join(here, "node_modules", "tldts", "dist", "index.umd.min.js"), path.join(jsOut, "tldts.js"));
+for (const f of fs.readdirSync(path.join(here, "pages"))) {
+  fs.copyFileSync(path.join(here, "pages", f), path.join(out, f));
+}
 for (const f of fs.readdirSync(path.join(here, "js"))) {
   fs.copyFileSync(path.join(here, "js", f), path.join(jsOut, f));
 }
@@ -66,6 +70,7 @@ fs.cpSync(path.join(here, "icons"), path.join(out, "icons"), { recursive: true }
 // Icon tinting: see chrome/css/chromium.css. `context-fill` is Firefox-only
 // too; bake in a dark fill (the dark theme already inverts these icons).
 fs.appendFileSync(path.join(out, "css", "popup.css"), fs.readFileSync(path.join(here, "css", "chromium.css")));
+fs.appendFileSync(path.join(out, "css", "options.css"), fs.readFileSync(path.join(here, "css", "options.css")));
 for (const f of fs.readdirSync(path.join(out, "img"), { recursive: true })) {
   if (!String(f).endsWith(".svg")) continue;
   const file = path.join(out, "img", String(f));
@@ -92,11 +97,16 @@ for (const file of walk(out)) {
   let html = fs.readFileSync(file, "utf8");
   const rel = path.relative(path.dirname(file), jsOut).split(path.sep).join("/");
   const scripts = ["browser-polyfill.js", "compat.js"];
-  if (file === path.join(out, "js", "background", "index.html")) scripts.push("isolation.js");
+  if (file === path.join(out, "js", "background", "index.html")) {
+    scripts.push("tldts.js", "purge.js", "isolation.js", "proxy.js");
+  }
   const tags = scripts.map((s) => `<script src="${rel}/${s}"></script>`).join("\n    ");
   const at = html.search(/<script\b/i);
   if (at < 0) continue;
   html = `${html.slice(0, at)}${tags}\n    ${html.slice(at)}`;
+  if (file === path.join(out, "options.html")) {
+    html = html.replace("</body>", `  <script src="${rel}/options-proxy.js"></script>\n  </body>`);
+  }
   fs.writeFileSync(file, html);
 }
 
@@ -104,6 +114,13 @@ for (const file of walk(out)) {
 const manifest = JSON.parse(fs.readFileSync(path.join(src, "manifest.json"), "utf8"));
 const icons = { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" };
 manifest.name = "Multi-Account Containers";
+// Pins the extension id (onhincpcieoahedkojoldccglpaokjln) so the proxy
+// helper's native messaging manifest can allow it.
+manifest.key = fs.readFileSync(path.join(here, "extension-key.pub"), "utf8").trim();
+// Firefox keeps containers out of private windows; Chromium can share one
+// background page with incognito, so containers work there too once the
+// user allows the extension in incognito.
+manifest.incognito = "spanning";
 manifest.homepage_url = "https://github.com/jpdagostin0/multi-account-containers-chromium#readme";
 manifest.icons = icons;
 manifest.minimum_chrome_version = "120";
@@ -112,6 +129,9 @@ manifest.permissions = [
   ...manifest.permissions.filter((p) => !["contextualIdentities", "idle"].includes(p)),
   "webNavigation",
   "browsingData",
+  "proxy",
+  "nativeMessaging",
+  "privacy",
 ];
 manifest.optional_permissions = [];
 manifest.background = { page: manifest.background.page, persistent: true };
@@ -126,7 +146,7 @@ manifest.options_ui = { page: manifest.options_ui.page, open_in_tab: true };
 manifest.content_scripts = [
   {
     matches: ["<all_urls>"],
-    js: ["js/chrome/content-isolation.js"],
+    js: ["js/chrome/purge.js", "js/chrome/content-isolation.js"],
     run_at: "document_start",
     all_frames: true,
     match_about_blank: true,
@@ -136,6 +156,7 @@ manifest.content_scripts = [
 manifest.web_accessible_resources = [
   ...manifest.web_accessible_resources.map((r) => r.replace(/^\//, "")),
   "confirm-page.html",
+  "proxy-status.html",
 ];
 // Chromium caps suggested shortcuts at four; keep the panel shortcut and
 // let users bind the rest at chrome://extensions/shortcuts.

@@ -13,30 +13,49 @@
 (() => {
   "use strict";
 
-  function maccMainWorld() {
+  function maccMainWorld(purge) {
     "use strict";
     const KEY = Symbol.for("multi-account-containers.ctx");
     const ANY = /^MACC\d+~/;
+    const MARKER = "MACC0~ctx";
+    const SS = Storage.prototype;
+    const ssGet = SS.getItem;
+    const ssSet = SS.setItem;
 
     function detect(win) {
+      // 1. Our Server-Timing entry: the response went through the extension.
       try {
         const nav = win.performance.getEntriesByType("navigation")[0];
-        if (nav && nav.serverTiming) {
-          for (const e of nav.serverTiming) {
-            if (e.name === "macc") {
-              const [n, flag] = String(e.description).split("|");
-              return { n: Number(n) || 0, block: flag === "b" };
-            }
+        const timing = (nav && nav.serverTiming) || [];
+        const e = timing.find((x) => x.name === "macc");
+        if (e) {
+          const [n, flag] = String(e.description).split("|");
+          const ctx = { n: Number(n) || 0, block: flag === "b" };
+          const p = timing.find((x) => x.name === "maccpurge");
+          if (p) {
+            const list = String(p.description).split(".").map((s) => {
+              const [id, pn] = s.split(":");
+              return { id, n: Number(pn) || 0 };
+            });
+            try { purge(list); } catch { /* ignore */ }
           }
+          try { ssSet.call(win.sessionStorage, MARKER, JSON.stringify(ctx)); } catch { /* blocked */ }
+          return ctx;
         }
       } catch { /* fall through */ }
-      // about:blank / srcdoc / javascript: documents inherit from their creator.
+      // 2. about:blank / srcdoc / javascript: documents inherit from their creator.
       for (const get of [() => win.parent, () => win.opener]) {
         try {
           const other = get();
           if (other && other !== win && other[KEY]) return other[KEY];
         } catch { /* cross-origin */ }
       }
+      // 3. Served without touching the network (service worker, cache):
+      //    the tab remembers its container for this origin.
+      try {
+        const m = ssGet.call(win.sessionStorage, MARKER);
+        if (m) return JSON.parse(m);
+      } catch { /* blocked */ }
       return { n: 0, block: false };
     }
 
@@ -303,20 +322,37 @@
     patch(window, detect(window));
   }
 
+  // What this tab remembered before this load (session restore, SW pages).
+  let marker = null;
+  try {
+    const m = sessionStorage.getItem("MACC0~ctx");
+    if (m) marker = JSON.parse(m).n;
+  } catch { /* storage blocked */ }
+
   const script = document.createElement("script");
-  script.textContent = `(${maccMainWorld})();`;
+  script.textContent = `(${maccMainWorld})(${globalThis.__maccPurgeInPage});`;
   (document.documentElement || document).appendChild(script);
   script.remove();
 
   if (window === window.top) {
-    let n = 0;
+    let header = null;
     try {
       const nav = performance.getEntriesByType("navigation")[0];
       const e = nav && nav.serverTiming && nav.serverTiming.find((x) => x.name === "macc");
-      if (e) n = Number(String(e.description).split("|")[0]) || 0;
+      if (e) header = Number(String(e.description).split("|")[0]) || 0;
     } catch { /* ignore */ }
+    const n = header !== null ? header : (marker || 0);
     try {
-      chrome.runtime.sendMessage({ __macc: "ctx", n }, () => void chrome.runtime.lastError);
+      chrome.runtime.sendMessage({ __macc: "ctx", n, header: header !== null, marker }, (res) => {
+        void chrome.runtime.lastError;
+        if (!res) return;
+        if (res.marker !== undefined) {
+          try {
+            sessionStorage.setItem("MACC0~ctx", JSON.stringify({ n: res.marker, block: true }));
+          } catch { /* storage blocked */ }
+        }
+        if (res.reload) location.reload();
+      });
     } catch { /* extension reloaded */ }
   }
 })();

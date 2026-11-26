@@ -2,26 +2,29 @@
 
 A port of Mozilla's [Firefox Multi-Account Containers][upstream] to
 Chromium browsers that still run Manifest V2 extensions, such as
-[Helium](https://helium.computer). It keeps the upstream add-on unchanged
-(same popup, options page, site assignments, locked containers, sync, and
-keyboard shortcuts) and adds a compatibility layer in [`chrome/`](chrome)
-that emulates what Chromium lacks.
+[Helium](https://helium.computer). The upstream add-on is unchanged: the
+same popup, options page, site assignments, locked containers, sync,
+keyboard shortcuts and per-container proxies. A compatibility layer in
+[`chrome/`](chrome) emulates what Chromium lacks.
 
-Chromium has no `contextualIdentities` API and only one cookie jar per
-profile. The port emulates containers on top of that jar:
+Chromium has no `contextualIdentities` API, only one cookie jar per profile,
+and no per-request proxy hook. The port emulates them:
 
 | Firefox | This port |
 | --- | --- |
-| `contextualIdentities.*` | stored in `storage.local`; Personal / Work / Banking / Shopping seeded on first run |
-| `tab.cookieStoreId`, `tabs.create({cookieStoreId})` | tab→container map in the background page; tabs opened from a container tab (links, `window.open`) inherit it |
-| one cookie jar per container | cookies are renamed in the shared jar: `sid` set in container 3 is stored as `MACC3~sid`. Blocking `webRequest` filters and unprefixes the `Cookie` header, and prefixes `Set-Cookie`. Chromium still handles domain/path/expiry/Secure/SameSite/HttpOnly. |
-| per-container DOM storage | a main-world shim namespaces `document.cookie`, `cookieStore`, `localStorage`/`sessionStorage`, IndexedDB, Cache Storage and `BroadcastChannel` with the same prefix. Default tabs never see prefixed entries. |
+| `contextualIdentities.*` | stored in `storage.local`; Personal / Work / Banking / Shopping are seeded on first run |
+| `tab.cookieStoreId`, `tabs.create({cookieStoreId})` | tab-to-container map in the background page. Tabs opened from a container tab (links, `window.open`) inherit its container. Container tabs come back after a restart, because each page remembers its container in its own `sessionStorage`. |
+| one cookie jar per container | cookies are renamed in the shared jar: `sid` set in container 3 is stored as `MACC3~sid`. Blocking `webRequest` filters and unprefixes `Cookie` and prefixes `Set-Cookie`. Chromium still handles domain, path, expiry, Secure, SameSite and HttpOnly. |
+| per-container DOM storage | a main-world shim namespaces `document.cookie`, `cookieStore`, `localStorage`/`sessionStorage`, IndexedDB, Cache Storage and `BroadcastChannel` with the same prefix. "Delete container data" and container removal wipe only that container's entries. |
+| per-container HTTP cache | a request bypasses the cache whenever another container holds cookies for that URL, so a response personalised for one container is never served to another |
+| per-container service workers | the first container to use an origin owns its workers, and their traffic is attributed to that container. If a second container uses the origin, the workers are removed and registration is disabled there. |
+| per-container proxies (`proxy.onRequest`) | a small local helper does the routing, see below |
 | "Always open in" (reopens in a new tab) | the tab switches container in place when the navigation commits; the confirm page is still shown unless "remember my decision" was ticked |
 | colored tab line | a per-tab toolbar badge with the container's color and initial |
 
-The page learns its container synchronously from a `Server-Timing: macc`
-response header that the extension adds to every document, so the shim is in
-place before any page script runs.
+Pages learn their container synchronously from a `Server-Timing` response
+header that the extension adds to every document, so the shim is in place
+before any page script runs.
 
 ## Install
 
@@ -29,56 +32,94 @@ place before any page script runs.
    [Releases](../../releases) and unzip it, or build it yourself (see below).
 2. Open `chrome://extensions`, enable **Developer mode**, click **Load
    unpacked**, and select the unzipped folder (`dist/chromium` if you built it).
+   The extension ID is pinned to `onhincpcieoahedkojoldccglpaokjln`.
 3. Pin the toolbar button. <kbd>Ctrl</kbd>+<kbd>.</kbd> opens the panel. You can
    bind the per-container shortcuts at `chrome://extensions/shortcuts`.
+4. Optional: to use containers in incognito windows, enable **Allow in
+   Incognito** on the extension's details page.
 
 You need a browser that still loads MV2 extensions with `webRequestBlocking`
 (Helium, ungoogled-chromium, Chromium with the MV2 flags, etc.).
+
+## Per-container proxies
+
+Set a proxy under a container's **Advanced proxy settings** in the panel,
+exactly as in Firefox (`http://`, `https://`, `socks://` = SOCKS5, `socks4://`,
+optionally `user:pass@`).
+
+Chromium only allows one proxy configuration per browser, and PAC scripts
+never see the tab, so routing happens in `macc-proxy-helper`. It's a small Go
+program that the browser starts on demand through native messaging. Install
+it once:
+
+```sh
+cd chrome/helper && ./install.sh     # needs Go; or use the release tarball
+```
+
+While any container has a proxy, the extension points the browser at the
+helper and tags every connection with its container. The helper challenges
+each new connection with `407`, and `webRequest.onAuthRequired`, which knows
+the tab, answers with a one-time token for that container. The helper then
+routes the connection through that container's upstream proxy, or connects
+directly for containers without one. Tokens are single-use, so Chromium's
+cached proxy credentials can't tag a connection with the wrong container.
+
+The proxy setup fails closed:
+
+- If the helper isn't running or another extension controls the proxy
+  setting, tabs in proxied containers don't load. They show a page explaining
+  why, and nothing falls back to a direct connection.
+- Chromium pools connections per top-level site, not per tab. So the same site
+  can't be open at the same time in two containers that reach the internet
+  differently. The second one gets an explanation page with a button to close
+  the other tabs. Old tunnels for a site are closed before it opens under a
+  different route.
+- While proxies are on, WebRTC is limited to proxied connections and DNS
+  prefetching is turned off.
+
+The options page shows the helper's status.
 
 ## Build
 
 ```sh
 git clone --recursive https://github.com/jpdagostin0/multi-account-containers-chromium
 cd multi-account-containers-chromium/chrome
-npm install           # webextension-polyfill
+npm install           # webextension-polyfill, tldts
 node build.mjs --zip  # -> dist/chromium/ and dist/*.zip
 ```
 
-`build.mjs` copies `src/` as-is, injects `webextension-polyfill` and
-`chrome/js/compat.js` into every page, adds the isolation engine to the
-background page, rewrites the manifest for Chromium, and fixes up locale files
-that Firefox accepts but Chromium refuses to load.
+`build.mjs` copies `src/` as-is, injects the compat layer into every page,
+adds the isolation and proxy modules to the background page, rewrites the
+manifest for Chromium, and fixes up locale files that Firefox accepts but
+Chromium refuses to load.
 
 ### Tests
 
 ```sh
-python3 chrome/test/server.py 8765 &
-BROWSER=helium node chrome/test/e2e.mjs
+node chrome/test/e2e.mjs      # BROWSER=chromium for another browser
 ```
 
-This runs a headless browser over CDP and checks cookie and storage isolation
-in both directions, container inheritance, the strict-CSP case, site
-assignment (the confirm page and the in-place switch), and container
-deletion.
+This starts test servers, two upstream proxies and the helper, then drives a
+headless browser over CDP. It checks cookie, storage, cache and service-worker
+isolation in both directions, container inheritance, restore, strict-CSP
+pages, per-container wipes, site assignment, container deletion, proxy
+routing over HTTP and HTTPS, the same-site conflict guard, and fail-closed
+behaviour without the helper.
 
-## Limits
+## Remaining limits
 
-This isolates accounts. It is not a security boundary:
+These come from Chromium itself. An extension can't change them:
 
-- The HTTP cache is shared. Document and XHR/fetch requests in containers
-  (and for sites ever opened in a container) are sent with
-  `Cache-Control: no-cache` so they revalidate with the right cookies, but
-  other cached subresources are shared.
-- Service workers can't be attributed to a tab. Sites opened in a container
-  get their workers removed, and worker registration is disabled for them.
-- Clearing a container's site data clears that site's localStorage in every
-  container, because Chromium can't target the prefix.
-- HTTP auth, saved passwords, history, and the fingerprint are shared.
-- Containers aren't available in incognito windows.
-- Mozilla VPN / per-container proxies and the bookmark context menu are
-  Firefox-only and are disabled.
-- Tab restore after a browser restart matches tabs by URL, so it's
-  best-effort.
+- HTTP authentication (Basic/Digest) is shared between containers. Chromium
+  adds cached credentials below the extension layer, where `webRequest` can't
+  see or strip them.
+- A site can't be open in two containers at the same time if their proxies
+  differ (see above). Containers with the same proxy, or no proxy, are
+  unaffected.
+- Saved passwords, history, and the fingerprint are shared. This is the same
+  as in Firefox.
+- Mozilla VPN and the bookmark context menu are Firefox-only, so they're
+  hidden.
 
 ## Upstream
 

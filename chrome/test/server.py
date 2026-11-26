@@ -1,48 +1,90 @@
 #!/usr/bin/env python3
-"""Tiny cookie test server for the Chromium port's isolation tests."""
+"""Test target for the Chromium port's isolation/proxy tests.
+
+    server.py PORT [HOST] [TLS_PORT]
+
+Serves plain HTTP on HOST:PORT and, if TLS_PORT is given, the same handler over
+HTTPS (self-signed) on HOST:TLS_PORT.
+"""
+import base64
 import json
+import os
+import ssl
+import subprocess
 import sys
+import tempfile
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 PAGE = """<!doctype html><meta charset=utf-8><title>macc test</title>
-<script>
-window.report = () => ({
-  cookie: document.cookie,
-  ls: Object.assign({}, localStorage),
-  lsLen: localStorage.length,
-});
-</script><body>macc test page</body>"""
+<body>macc test page</body>"""
 
 
 class H(BaseHTTPRequestHandler):
-    def log_message(self, *a):
+    def log_message(self, format, *args):  # noqa: A002 - signature from base
         pass
+
+    def reply(self, code, body, ctype="text/html", headers=()):
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        for k, v in headers:
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(body.encode())
 
     def do_GET(self):
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        cookie = self.headers.get("Cookie", "")
         if u.path == "/set":
-            self.send_response(200)
-            self.send_header("Set-Cookie", f"{q['n']}={q['v']}; Path=/; Max-Age=3600")
-            self.send_header("Set-Cookie", f"http_{q['n']}={q['v']}; Path=/; HttpOnly")
-            self.send_header("Content-Type", "text/html")
-            self.end_headers()
-            self.wfile.write(PAGE.encode())
+            self.reply(200, PAGE, headers=[
+                ("Set-Cookie", f"{q['n']}={q['v']}; Path=/; Max-Age=3600"),
+                ("Set-Cookie", f"http_{q['n']}={q['v']}; Path=/; HttpOnly"),
+            ])
         elif u.path == "/echo":
-            body = json.dumps({"cookie": self.headers.get("Cookie", "")}).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(body)
+            self.reply(200, json.dumps({
+                "cookie": cookie,
+                "upstream": self.headers.get("X-Upstream", ""),
+            }), "application/json")
+        elif u.path == "/cached":
+            # Personalised but cacheable: the classic shared-cache leak.
+            self.reply(200, cookie, "text/plain", [("Cache-Control", "max-age=600")])
+        elif u.path == "/auth":
+            want = "Basic " + base64.b64encode(b"user:pass").decode()
+            if self.headers.get("Authorization") == want:
+                self.reply(200, "authed", "text/plain")
+            else:
+                self.reply(401, "no", "text/plain", [("WWW-Authenticate", 'Basic realm="t"')])
         else:
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
+            headers = []
             if u.path == "/csp":
-                self.send_header("Content-Security-Policy", "script-src 'self'")
-            self.end_headers()
-            self.wfile.write(PAGE.encode())
+                headers.append(("Content-Security-Policy", "script-src 'self'"))
+            self.reply(200, PAGE, headers=headers)
 
 
-ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
+def serve(server):
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+
+def main():
+    port = int(sys.argv[1])
+    host = sys.argv[2] if len(sys.argv) > 2 else "127.0.0.1"
+    serve(ThreadingHTTPServer((host, port), H))
+    if len(sys.argv) > 3:
+        d = tempfile.mkdtemp()
+        key, crt = os.path.join(d, "k.pem"), os.path.join(d, "c.pem")
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                        "-subj", "/CN=macc-test", "-keyout", key, "-out", crt],
+                       check=True, capture_output=True)
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(crt, key)
+        tls = ThreadingHTTPServer((host, int(sys.argv[3])), H)
+        tls.socket = ctx.wrap_socket(tls.socket, server_side=True)
+        serve(tls)
+    threading.Event().wait()
+
+
+if __name__ == "__main__":
+    main()
