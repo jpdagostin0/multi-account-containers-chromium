@@ -320,15 +320,17 @@
       }
       csid = csid || DEFAULT;
       if (csid !== DEFAULT) await contextualIdentities.get(csid);
-      const target = chromeUrl(p.url);
-      // Create on about:blank, bind the container, then navigate, so the
-      // very first network request already carries the container's cookies.
-      if (isNetworkUrl(target)) p.url = "about:blank";
-      else p.url = target;
-      const tab = await base.tabs.create(p);
-      iso().setTab(tab.id, csid);
-      if (isNetworkUrl(target)) await base.tabs.update(tab.id, { url: target });
-      return augment(tab);
+      p.url = chromeUrl(p.url);
+      // The tab's first request may go out before tabs.create resolves:
+      // isolation.js binds it by URL in its (synchronous) onBeforeRequest.
+      const ticket = isNetworkUrl(p.url) ? iso().expect(p.url, csid) : null;
+      try {
+        const tab = await base.tabs.create(p);
+        iso().setTab(tab.id, csid);
+        return augment(tab);
+      } finally {
+        if (ticket) iso().unexpect(ticket);
+      }
     },
     async update(...args) {
       const props = { ...(typeof args[0] === "number" ? args[1] : args[0]) };
@@ -373,15 +375,15 @@
       for (const k of ["cookieStoreId", "titlePreface", "allowScriptsToClose"]) delete d[k];
       if (typeof d.url === "string") d.url = chromeUrl(d.url);
       if (csid && csid !== DEFAULT) {
-        const url = d.url;
-        delete d.url;
-        const w = await base.windows.create(d);
-        const first = w.tabs && w.tabs[0];
-        if (first) {
-          iso().setTab(first.id, csid);
-          if (url) await base.tabs.update(first.id, { url });
+        const ticket = isNetworkUrl(d.url) ? iso().expect(d.url, csid) : null;
+        try {
+          const w = await base.windows.create(d);
+          const first = w.tabs && w.tabs[0];
+          if (first) iso().setTab(first.id, csid);
+          return augmentWindow(await base.windows.get(w.id, { populate: true }));
+        } finally {
+          if (ticket) iso().unexpect(ticket);
         }
-        return augmentWindow(await base.windows.get(w.id, { populate: true }));
       }
       return augmentWindow(await base.windows.create(d));
     },

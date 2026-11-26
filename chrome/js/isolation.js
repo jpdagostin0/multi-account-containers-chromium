@@ -346,8 +346,23 @@
     return `siteContainerMap@@_${u.hostname}${port}`;
   }
 
+  /** Tabs being created by tabs.create({cookieStoreId}), bound by URL. */
+  const expected = new Set();
+  const normalizeUrl = (url) => { try { return new URL(url).href; } catch { return url; } };
+
   function onBeforeRequest(d) {
-    if (d.tabId < 0 || d.frameId !== 0 || !ready) return {};
+    if (d.tabId < 0 || d.frameId !== 0) return {};
+    if (expected.size && d.type === "main_frame") {
+      const href = normalizeUrl(d.url);
+      for (const e of expected) {
+        if (e.href === href && Date.now() - e.at < 10000) {
+          expected.delete(e);
+          setTabN(d.tabId, idOf(e.csid));
+          break;
+        }
+      }
+    }
+    if (!ready) return {};
     const origin = originOf(d.url);
     if (!origin) return {};
     const committed = containerOf(d.tabId);
@@ -549,6 +564,12 @@
   globalThis.__maccIso = {
     get: (tabId) => csidOf(containerOf(tabId)),
     setTab: (tabId, csid) => setTabN(tabId, idOf(csid)),
+    expect(url, csid) {
+      const e = { href: normalizeUrl(url), csid, at: Date.now() };
+      expected.add(e);
+      return e;
+    },
+    unexpect: (e) => expected.delete(e),
     containerOf,
     contextFor,
     identityExists,

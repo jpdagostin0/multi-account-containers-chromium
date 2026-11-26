@@ -76,8 +76,13 @@ async function session(c, { withErrors = true } = {}) {
     }
   };
   const pageSession = async (urlPart) => {
-    const t = (await c.targets()).find((x) => x.type === "page" && x.url.includes(urlPart));
+    let t;
+    for (let i = 0; i < 50 && !t; i++) {
+      t = (await c.targets()).find((x) => x.type === "page" && x.url.includes(urlPart));
+      if (!t) await sleep(100);
+    }
     if (!t) throw new Error(`no page ${urlPart}: ${(await c.targets()).map((x) => x.url).join(", ")}`);
+    await settle();
     const s = await c.attach(t.targetId);
     await c.send("Runtime.enable", {}, s);
     return s;
@@ -281,6 +286,9 @@ async function session(c, { withErrors = true } = {}) {
     const proxyLabel = await P(pop, "document.getElementById('advanced-proxy-address').textContent");
     check("edit panel shows the container's proxy", proxyLabel === `http://127.0.0.1:${UP_A}`, proxyLabel);
     check("Mozilla VPN controls hidden", await P(pop, "getComputedStyle(document.querySelector('moz-vpn-container-ui')).display === 'none'"));
+    const sel = await P(pop, `["color", "icon"].map(k => { const i = document.querySelector('#edit-container-panel-choose-' + k + ' input:checked'); return i ? [i.value, getComputedStyle(i.nextElementSibling).backgroundColor] : null; })`);
+    check("edit panel marks the current color and icon", sel[0] && sel[0][0] === "orange" && sel[1] && sel[1][0] === "briefcase"
+      && sel.every((x) => x[1] !== "rgba(0, 0, 0, 0)"), sel);
   } catch (e) {
     failed++;
     console.error("ERROR", e.message);
