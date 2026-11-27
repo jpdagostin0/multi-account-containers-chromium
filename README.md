@@ -20,7 +20,7 @@ and no per-request proxy hook. The port emulates them:
 | per-container service workers | the first container to use an origin owns its workers, and their traffic is attributed to that container. If a second container uses the origin, the workers are removed and registration is disabled there. |
 | per-container proxies (`proxy.onRequest`) | a small local helper does the routing, see below |
 | "Always open in" (reopens in a new tab) | the tab switches container in place when the navigation commits; the confirm page is still shown unless "remember my decision" was ticked |
-| colored tab line | container tabs are grouped into a tab group per window, named and colored after the container. There's also an optional colored frame around the page and a per-tab toolbar badge (see [Highlighting](#highlighting)). |
+| colored tab line | a dot in the container's color on the tab's favicon, plus an optional page border, optional tab groups and a toolbar badge (see [Highlighting](#highlighting)) |
 
 Pages learn their container synchronously from a `Server-Timing` response
 header that the extension adds to every document, so the shim is in place
@@ -37,7 +37,7 @@ before any page script runs.
    bind the per-container shortcuts at `chrome://extensions/shortcuts`.
 4. Optional: to use containers in incognito windows, enable **Allow in
    Incognito** on the extension's details page.
-5. Optional, for colored tab groups: load
+5. Optional, only if you want tab groups instead of or as well as the favicon dot: load
    `multi-account-containers-chromium-tabgroups-*.zip` (or
    `dist/chromium-tabgroups`) unpacked as well.
 
@@ -47,26 +47,23 @@ when it's off.
 ## Highlighting
 
 Firefox draws a colored line on container tabs. Chromium doesn't let
-extensions style tabs, so the port uses:
+extensions style tabs, so the port offers these instead, all switchable in the
+extension's options:
 
-- **Tab groups.** Each container's tabs go into one tab group per window,
-  titled with the container's name and colored to match. Chromium then draws
-  the colored label and the line under every tab in it. Renaming or
-  recoloring a container restyles its groups, and tabs you've put in your
-  own groups are left alone. Only Manifest V3 extensions may set a group's
-  color and title (`chrome.tabGroups`), so a tiny companion extension
-  ([`chrome/tabgroups-companion`](chrome/tabgroups-companion)) does that
-  part. It has only the `tabGroups` permission and only takes requests from
-  this extension.
-- **Page border.** A thin frame in the container's color is drawn around
-  container pages.
-- **Toolbar badge.** The toolbar badge shows the container's initial, in its
-  color.
-
-Turn tab groups and the page border on or off in the extension's options.
-
-You need a browser that still loads MV2 extensions with `webRequestBlocking`
-(Helium, ungoogled-chromium, Chromium with the MV2 flags, etc.).
+- **Favicon dot** (on by default). The favicon of each container tab is
+  redrawn with a dot in the container's color. It shows anywhere the browser
+  draws the tab icon, horizontal or vertical tabs alike. If the page changes
+  its own icon, the new one gets marked too. Pages without a usable icon get a
+  plain colored disc.
+- **Page border** (off by default). A thin frame in the container's color is
+  drawn around container pages.
+- **Tab groups** (off by default). Each container's tabs go into one tab group
+  per window, named and colored after the container. Only Manifest V3
+  extensions may color tab groups, so this needs the tiny companion extension
+  in [`chrome/tabgroups-companion`](chrome/tabgroups-companion), loaded
+  unpacked as well.
+- **Toolbar badge** (always on). The badge shows the container's initial, in
+  its color.
 
 ## Per-container proxies
 

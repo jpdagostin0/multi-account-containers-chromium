@@ -21,6 +21,18 @@ PAGE = """<!doctype html><meta charset=utf-8><title>macc test</title>
 <body>macc test page</body>"""
 
 
+def _png(size, rgb):
+    import struct
+    import zlib
+    raw = b"".join(b"\x00" + bytes(rgb) * size for _ in range(size))
+    chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+ICON = _png(16, (0, 0, 255))  # solid blue
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, format, *args):  # noqa: A002 - signature from base
         pass
@@ -48,6 +60,11 @@ class H(BaseHTTPRequestHandler):
                 "cookie": cookie,
                 "upstream": self.headers.get("X-Upstream", ""),
             }), "application/json")
+        elif u.path == "/favicon.ico":
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.end_headers()
+            self.wfile.write(ICON)
         elif u.path == "/cached":
             # Personalised but cacheable: the classic shared-cache leak.
             self.reply(200, cookie, "text/plain", [("Cache-Control", "max-age=600")])

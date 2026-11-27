@@ -148,7 +148,29 @@ async function session(c, { withErrors = true } = {}) {
     const cs = await P(work, "cookieStore.getAll().then(l => l.map(c => c.name).sort())");
     check("cookieStore filtered", JSON.stringify(cs) === JSON.stringify(["js", "sid"]), cs);
 
-    // Highlighting: colored tab group + page border.
+    // Highlighting: favicon dot (default), then page border + tab groups.
+    await sleep(500);
+    const iconPixels = (s) => P(s, `(async () => {
+      const l = document.querySelector('link[rel~="icon"]');
+      if (!l || !l.href.startsWith("data:")) return null;
+      const img = new Image(); img.src = l.href; await img.decode();
+      const c = document.createElement("canvas"); c.width = c.height = 32;
+      const x = c.getContext("2d"); x.drawImage(img, 0, 0);
+      const px = (a, b) => Array.from(x.getImageData(a, b, 1, 1).data.slice(0, 3)).join(",");
+      return { icon: px(4, 4), dot: px(24, 24) };
+    })()`);
+    const near = (px, rgb) => !!px && px.split(",").every((v, i) => Math.abs(Number(v) - rgb[i]) <= 3);
+    const wp = await iconPixels(work);
+    check("container tab favicon keeps the site icon and gets an orange dot", wp && near(wp.icon, [0, 0, 255]) && near(wp.dot, [255, 159, 0]), wp);
+    let tabIcon = "";
+    for (let i = 0; i < 30 && !tabIcon.startsWith("data:"); i++) {
+      tabIcon = (await B(`browser.tabs.get(${workTab}).then(t => t.favIconUrl || "")`));
+      if (!tabIcon.startsWith("data:")) await sleep(100);
+    }
+    check("browser uses the marked icon for the tab", tabIcon.startsWith("data:image/png"), tabIcon.slice(0, 40));
+    check("default tab favicon untouched", (await iconPixels(def)) === null);
+    check("tab groups off by default", (await B(`browser.tabs.get(${workTab}).then(t => t.groupId)`)) === -1);
+    await B("__maccHighlight.setSettings({tabGroups: true, pageBorder: true})");
     await B("__maccHighlight.syncAll()");
     await sleep(500);
     const frameColor = (s) => P(s, "(document.querySelector('macc-container-frame') || {dataset: {}}).dataset.color || null");
@@ -166,11 +188,14 @@ async function session(c, { withErrors = true } = {}) {
     const group2 = await B(`new Promise(r => chrome.runtime.sendMessage("${COMPANION_ID}", {op: "get", groupId: ${gid}}, r)).then(x => x.group)`);
     check("renaming/recoloring a container restyles its group", group2.title === "Work!" && group2.color === "purple", group2);
     check("…and its page border", (await frameColor(work)) === "#af51f5", await frameColor(work));
+    check("…and its favicon dot", near(((await iconPixels(work)) || {}).dot, [175, 81, 245]), await iconPixels(work));
     await B(`browser.contextualIdentities.update("firefox-container-2", {name: "Work", color: "orange"})`);
-    await B("__maccHighlight.setSettings({pageBorder: false})");
-    await sleep(500);
+    await B("__maccHighlight.setSettings({pageBorder: false, faviconMarker: false, tabGroups: false})");
+    await sleep(800);
     check("page border can be turned off", (await frameColor(work)) === null);
-    await B("__maccHighlight.setSettings({pageBorder: true})");
+    check("favicon dot can be turned off", (await iconPixels(work)) === null);
+    check("turning tab groups off ungroups", (await B(`browser.tabs.get(${workTab}).then(t => t.groupId)`)) === -1);
+    await B("__maccHighlight.setSettings({faviconMarker: true})");
 
     // HTTP cache: a personalised, cacheable response must not cross containers.
     const cachedWork = await P(work, "fetch('/cached').then(r => r.text())");

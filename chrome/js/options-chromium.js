@@ -26,12 +26,14 @@
     const label = el("label", {}, input, el("span", { className: "bold", textContent: ` ${title}` }));
     return { input, node: el("div", { className: "settings-group" }, label, el("p", {}, el("em", { textContent: description }))) };
   }
+  const faviconToggle = toggle("faviconMarker", "Color dot on tab icons",
+    "Mark the favicon of container tabs with a dot in the container's color. Works in horizontal and vertical tabs.");
   const groupsToggle = toggle("tabGroups", "Group container tabs",
     "Put each container's tabs in a tab group named and colored after the container (needs the tab group companion).");
   const borderToggle = toggle("pageBorder", "Colored page border",
     "Draw a thin frame in the container's color around pages open in a container.");
   const companionNote = el("p", { id: "macc-companion-status" });
-  hl.append(el("h3", { textContent: "Container highlighting" }), groupsToggle.node, companionNote, borderToggle.node);
+  hl.append(el("h3", { textContent: "Container highlighting" }), faviconToggle.node, borderToggle.node, groupsToggle.node, companionNote);
 
   // ---- proxies -------------------------------------------------------------
   const px = el("div", { id: "macc-proxy-status", className: "settings-group" });
@@ -39,6 +41,7 @@
 
   function render() {
     const h = highlight.status();
+    faviconToggle.input.checked = h.faviconMarker;
     groupsToggle.input.checked = h.tabGroups;
     borderToggle.input.checked = h.pageBorder;
     companionNote.replaceChildren();

@@ -10,6 +10,10 @@
 //                label and the line under the tabs). chrome.tabGroups is
 //                MV3-only, so the tab-group companion extension applies the
 //                color and title.
+//   favicon dot  (default) the tab's favicon is redrawn with a dot in the
+//                container's color, so it shows in horizontal and vertical
+//                tab strips alike. The page asks for the marked icon
+//                (content-isolation.js); we fetch and composite it here.
 //   page border  an optional colored frame around the page itself, drawn by
 //                js/chrome/content-isolation.js.
 //
@@ -21,7 +25,7 @@
   const { base, COLORS, IDENT_KEY } = globalThis.__maccCompat;
   const SETTINGS_KEY = "__macc_settings";
   const COMPANION = "jeedhomnaldfldmfkfekpifefpfcpbll";
-  const DEFAULTS = { tabGroups: true, pageBorder: true };
+  const DEFAULTS = { faviconMarker: true, tabGroups: false, pageBorder: false };
   // Container colors -> Chromium tab group colors (same palette names).
   const GROUP_COLOR = {
     blue: "blue", turquoise: "cyan", green: "green", yellow: "yellow",
@@ -139,12 +143,14 @@
     const all = await base.tabs.query({});
     all.forEach((t) => schedule(t.id));
     all.forEach((t) => applyBorder(t.id));
+    all.forEach((t) => refreshFavicon(t.id));
   }
 
   iso.listeners.tabContainerChanged.push((tabId, n) => {
     if (n === null) return;
     schedule(tabId);
     applyBorder(tabId);
+    refreshFavicon(tabId);
   });
   chrome.tabs.onAttached.addListener((tabId) => schedule(tabId));
   chrome.tabs.onUpdated.addListener((tabId, info) => {
@@ -177,6 +183,87 @@
   }
 
   // -------------------------------------------------------------------------
+  // favicon dot
+  // -------------------------------------------------------------------------
+  const iconCache = new Map(); // "href|color" -> data URL
+  function markerColor(n) {
+    if (!settings().faviconMarker || !n) return null;
+    const rec = identity(n);
+    return rec ? (COLORS[rec.color] || COLORS.blue) : null;
+  }
+
+  function loadImage(href) {
+    return new Promise((resolve) => {
+      if (!href || !/^(https?|data):/.test(href)) return resolve(null);
+      const done = (img) => { clearTimeout(timer); resolve(img); };
+      const timer = setTimeout(() => done(null), 5000);
+      const fromBlob = (blob) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => { URL.revokeObjectURL(url); done(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); done(null); };
+        img.src = url;
+      };
+      // Fetched without cookies, from the extension (no page CORS limits).
+      fetch(href, { credentials: "omit", cache: "force-cache" })
+        .then((res) => (res.ok ? res.blob() : null))
+        .then((blob) => (blob && blob.size ? fromBlob(blob) : done(null)))
+        .catch(() => done(null));
+    });
+  }
+
+  async function markedIcon(href, color) {
+    const key = `${href}|${color}`;
+    if (iconCache.has(key)) return iconCache.get(key);
+    const img = await loadImage(href);
+    const S = 32;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = S;
+    const ctx = canvas.getContext("2d");
+    if (img) {
+      ctx.drawImage(img, 0, 0, S, S);
+      // Dot in the bottom-right corner, ringed so it reads on any icon/theme.
+      ctx.beginPath();
+      ctx.arc(S - 8, S - 8, 7.5, 0, 2 * Math.PI);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#fff";
+      ctx.stroke();
+    } else {
+      // No usable favicon: a plain colored disc.
+      ctx.beginPath();
+      ctx.arc(S / 2, S / 2, S / 2 - 3, 0, 2 * Math.PI);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#fff";
+      ctx.stroke();
+    }
+    const url = canvas.toDataURL("image/png");
+    if (iconCache.size > 300) iconCache.delete(iconCache.keys().next().value);
+    iconCache.set(key, url);
+    return url;
+  }
+
+  chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+    if (!msg || msg.__macc !== "favicon" || !sender.tab || sender.frameId !== 0) return undefined;
+    const color = markerColor(iso.containerOf(sender.tab.id));
+    if (!color) {
+      respond({ url: null });
+      return undefined;
+    }
+    markedIcon(msg.href, color).then((url) => respond({ url }), () => respond({ url: null }));
+    return true;
+  });
+
+  function refreshFavicon(tabId) {
+    chrome.tabs.executeScript(tabId, {
+      code: "window.__maccRefreshFavicon && window.__maccRefreshFavicon()",
+    }, lastError);
+  }
+
+  // -------------------------------------------------------------------------
   // reacting to settings / identity changes
   // -------------------------------------------------------------------------
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -188,7 +275,7 @@
           const n = Number(key.split(":")[1]);
           if (identity(n)) styleGroup(gid, n).catch(() => {});
         }
-        (await base.tabs.query({})).forEach((t) => applyBorder(t.id));
+        (await base.tabs.query({})).forEach((t) => { applyBorder(t.id); refreshFavicon(t.id); });
       }, 0);
     }
   });

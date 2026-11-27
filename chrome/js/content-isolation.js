@@ -367,6 +367,85 @@
   }
   if (window === window.top) window.__maccSetBorder = setBorder;
 
+  // Favicon dot (see highlight.js): swap the page's icon links for a copy
+  // marked with the container color; follow the page's own icon changes.
+  if (window === window.top && /^https?:$/.test(location.protocol)) {
+    let marked = null;    // data URL we installed
+    let applying = false;
+    let seq = 0;
+    const iconLinks = () => [...document.querySelectorAll('link[rel~="icon" i]')];
+    const pageIcon = () => {
+      const link = iconLinks().find((l) => !l.hasAttribute("data-macc-added"));
+      if (link) return link.dataset.maccOrig || link.href;
+      return new URL("/favicon.ico", location.href).href;
+    };
+    const apply = (url) => {
+      applying = true;
+      const head = document.head || document.documentElement;
+      if (url) {
+        let links = iconLinks();
+        if (!links.length) {
+          const l = document.createElement("link");
+          l.rel = "icon";
+          l.setAttribute("data-macc-added", "");
+          head.appendChild(l);
+          links = [l];
+        }
+        for (const l of links) {
+          if (!l.hasAttribute("data-macc-added") && l.dataset.maccOrig === undefined) {
+            l.dataset.maccOrig = l.getAttribute("href") || "";
+          }
+          l.href = url;
+        }
+      } else {
+        for (const l of iconLinks()) {
+          if (l.hasAttribute("data-macc-added")) l.remove();
+          else if (l.dataset.maccOrig !== undefined) {
+            l.setAttribute("href", l.dataset.maccOrig);
+            delete l.dataset.maccOrig;
+          }
+        }
+      }
+      marked = url;
+      Promise.resolve().then(() => { applying = false; });
+    };
+    const refresh = () => {
+      const mine = ++seq;
+      try {
+        chrome.runtime.sendMessage({ __macc: "favicon", href: pageIcon() }, (res) => {
+          void chrome.runtime.lastError;
+          if (mine === seq && res) apply(res.url);
+        });
+      } catch { /* extension reloaded */ }
+    };
+    window.__maccRefreshFavicon = refresh;
+    // The page changed its icon (e.g. unread counters): forget our copy of
+    // the old original and re-mark the new one.
+    const watcher = new MutationObserver((records) => {
+      if (applying) return;
+      let changed = false;
+      for (const r of records) {
+        if (r.type === "attributes" && r.target.matches && r.target.matches('link[rel~="icon" i]')
+            && r.target.getAttribute("href") !== marked) {
+          delete r.target.dataset.maccOrig;
+          changed = true;
+        }
+        for (const n of r.addedNodes || []) {
+          if (n.matches && n.matches('link[rel~="icon" i]') && !n.hasAttribute("data-macc-added")) changed = true;
+        }
+      }
+      if (changed && (marked || seq)) refresh();
+    });
+    const start = () => {
+      watcher.observe(document.head || document.documentElement, {
+        subtree: true, childList: true, attributes: true, attributeFilter: ["href", "rel"],
+      });
+      refresh();
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
+    else start();
+  }
+
   if (window === window.top) {
     let header = null;
     try {
