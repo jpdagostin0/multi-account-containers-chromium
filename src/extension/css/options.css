@@ -72,6 +72,19 @@ button {
 }
 
 /* Chromium port. */
+.macc-field {
+  display: block;
+  margin-block: 0.6em;
+}
+
+.macc-field input {
+  box-sizing: border-box;
+  display: block;
+  font: inherit;
+  margin-block-start: 4px;
+  padding: 5px 8px;
+}
+
 #macc-proxy-status {
   margin-block: 1.5em;
 }

@@ -20,14 +20,17 @@ export function setUpSearch(tabId: number, mine: Container | undefined, top: Top
   q.placeholder = `Search the web${where}`;
   search.engine().then((e) => { if (e?.name) q.placeholder = `Search ${e.name}${where}`; });
 
-  const go: Go = (raw) => {
+  const go: Go = async (raw) => {
     const text = raw.trim();
     if (!text) return;
+    const csid = mine?.csid ?? "firefox-default";
     if (looksLikeUrl(text)) {
-      top.openInTab(tabId, mine?.csid ?? "firefox-default", /:\/\//.test(text) ? text : `https://${text}`);
-    } else if (chrome.search) {
-      chrome.search.query({ text, disposition: "CURRENT_TAB" });
+      top.openInTab(tabId, csid, /:\/\//.test(text) ? text : `https://${text}`);
+      return;
     }
+    const url = await search.resultsUrl(text);
+    if (url) top.openInTab(tabId, csid, url);
+    else chrome.search?.query({ text, disposition: "CURRENT_TAB" });
   };
   document.getElementById("search")!.addEventListener("submit", (e) => {
     e.preventDefault();

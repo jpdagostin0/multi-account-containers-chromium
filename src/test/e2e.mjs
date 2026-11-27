@@ -385,6 +385,23 @@ async function session(c, { withErrors = true } = {}) {
     const target = await P(sNtp, `(() => { const li = document.querySelector('#suggest li[data-kind="tab"]'); li.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })); return true; })()`);
     await sleep(800);
     check("picking an open tab switches to it and closes the new tab", target && (await B(`browser.tabs.get(${sTab}).then(() => "open", () => "closed")`)) === "closed");
+    // A custom engine from the options page replaces the browser's.
+    await B(`__maccSearch.setCustomEngine({name: "Mine", url: "${ORIGIN}/search?q=%s", suggestionsUrl: "${ORIGIN}/suggest?q=%s"})`);
+    const cTab = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2"}).then(t => t.id)`);
+    await settle();
+    let cNtp = null;
+    for (const t of (await c.targets()).filter((x) => x.url.includes("newtab"))) {
+      const sess = await c.attach(t.targetId);
+      if ((await P(sess, "new Promise(r => chrome.tabs.getCurrent(t => r(t && t.id)))")) === cTab) cNtp = sess;
+    }
+    await sleep(800);
+    const cHolder = await P(cNtp, `document.getElementById("q").placeholder`);
+    check("custom search engine is used", cHolder === "Search Mine in Work", cHolder);
+    await P(cNtp, `(() => { const q = document.getElementById("q"); q.value = "hello there"; document.getElementById("search").requestSubmit(); })()`);
+    await settle();
+    const cUrl = await B(`browser.tabs.get(${cTab}).then(t => [t.url, t.cookieStoreId].join(" "))`);
+    check("searching opens the custom engine in the tab's container", cUrl === `${ORIGIN}/search?q=hello%20there firefox-container-2`, cUrl);
+    await B(`__maccSearch.setCustomEngine(null).then(() => browser.tabs.remove(${cTab}))`);
     const tabsShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-ctabs.png"), Buffer.from(tabsShot.data, "base64"));
     await B(`browser.tabs.remove(${ntpWork})`);

@@ -8,10 +8,11 @@
 import { backgroundPage } from "../background";
 import { highlightingSection } from "./highlighting";
 import { proxiesSection } from "./proxies";
+import { searchEngineSection } from "./search-engine";
 
 const page = backgroundPage();
 const anchor = document.querySelector('[data-i18n-message-id="tabBehavior"]')!;
-const sections = [highlightingSection(page.__maccHighlight), proxiesSection(page.__maccProxy)];
+const sections = [highlightingSection(page.__maccHighlight), searchEngineSection(page.__maccSearch), proxiesSection(page.__maccProxy)];
 for (const s of sections) anchor.parentNode!.insertBefore(s.node, anchor);
 
 const render = () => sections.forEach((s) => s.render());
