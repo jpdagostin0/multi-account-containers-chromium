@@ -368,8 +368,24 @@ main {
   transition: background-color 150ms, color 150ms, opacity 250ms;
 }
 
+#settings-link {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 13px;
+  gap: 6px;
+  inset-block-end: 12px;
+  inset-inline-start: 16px;
+  padding: 6px 10px;
+  position: fixed;
+  text-decoration: none;
+  transition: background-color 150ms, color 150ms;
+}
+
 #history-toggle:hover,
-#history-toggle:focus-visible {
+#history-toggle:focus-visible,
+#settings-link:hover,
+#settings-link:focus-visible {
   background: var(--tile-hover);
   color: var(--fg);
   outline: none;
@@ -382,6 +398,15 @@ main {
   -webkit-mask: var(--clock) center / 16px no-repeat;
   mask: var(--clock) center / 16px no-repeat;
   --clock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.2 6.5A6 6 0 1 1 2 9'/%3E%3Cpath d='M1.8 3.2v3.3h3.3'/%3E%3Cpath d='M8 4.8V8l2.3 1.5'/%3E%3C/svg%3E");
+}
+
+.gear {
+  background-color: currentColor;
+  block-size: 16px;
+  inline-size: 16px;
+  -webkit-mask: var(--gear) center / 16px no-repeat;
+  mask: var(--gear) center / 16px no-repeat;
+  --gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'%3E%3Cpath d='M6.9 1.5h2.2l.4 1.9 1.3.7 1.8-.7 1.1 1.9-1.4 1.3v1.6l1.4 1.3-1.1 1.9-1.8-.7-1.3.7-.4 1.9H6.9l-.4-1.9-1.3-.7-1.8.7-1.1-1.9 1.4-1.3V7.2L2.3 5.9l1.1-1.9 1.8.7 1.3-.7z'/%3E%3Ccircle cx='8' cy='8' r='2.1'/%3E%3C/svg%3E");
 }
 
 .history-open #history-toggle {

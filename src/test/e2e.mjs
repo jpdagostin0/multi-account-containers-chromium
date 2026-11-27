@@ -372,6 +372,8 @@ async function session(c, { withErrors = true } = {}) {
     await settle();
     const dNtp = await pageSession("newtab");
     await sleep(500);
+    const gear = await P(dNtp, `(() => { const a = document.getElementById("settings-link"), r = a.getBoundingClientRect(); return [a.href.endsWith("/settings.html"), r.left < 40, innerHeight - r.bottom < 40]; })()`);
+    check("settings link at the bottom left of the new tab page", gear.every(Boolean), gear);
     check("browser default engine: generic placeholder", (await P(dNtp, `document.getElementById("q").placeholder`)) === "Search the web in Work");
     await B(`browser.tabs.remove(${dTab})`);
     const tabsShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
