@@ -5,17 +5,6 @@
 // The settings page (replaces upstream's options page).
 
 import { backgroundPage } from "../background";
-import { colorsSection } from "./colors";
-import { highlightingSection } from "./highlighting";
-import { searchSection } from "./search";
-import { onboardingSection, shortcutsSection, tabsSection } from "./tabs";
+import { settingsSections } from "./sections";
 
-const page = backgroundPage();
-document.getElementById("sections")!.append(
-  searchSection(page.__maccSearch),
-  colorsSection(page.__maccTheme),
-  highlightingSection(page.__maccHighlight),
-  tabsSection(),
-  shortcutsSection(),
-  onboardingSection(),
-);
+document.getElementById("sections")!.append(...settingsSections(backgroundPage()));

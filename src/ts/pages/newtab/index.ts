@@ -11,6 +11,7 @@ import { listContainers } from "../containers";
 import { setUpContainerTabs } from "./container-tabs";
 import { setUpHistoryDrawer } from "./history-drawer";
 import { setUpSearch } from "./search";
+import { setUpSettingsDrawer } from "./settings-drawer";
 import { setUpSuggestions } from "./suggestions";
 import { section } from "./sections";
 
@@ -32,6 +33,7 @@ setUpSuggestions({
 });
 setUpContainerTabs(containers, myN, me.id!, top);
 setUpHistoryDrawer(containers, myN, me.id!, page.__maccHistory, top);
+setUpSettingsDrawer(page);
 
 const lists = await top.list(16);
 const root = document.getElementById("sections")!;

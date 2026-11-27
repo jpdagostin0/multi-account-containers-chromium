@@ -372,8 +372,26 @@ async function session(c, { withErrors = true } = {}) {
     await settle();
     const dNtp = await pageSession("newtab");
     await sleep(500);
-    const gear = await P(dNtp, `(() => { const a = document.getElementById("settings-link"), r = a.getBoundingClientRect(); return [a.href.endsWith("/settings.html"), r.left < 40, innerHeight - r.bottom < 40]; })()`);
-    check("settings link at the bottom left of the new tab page", gear.every(Boolean), gear);
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 800, deviceScaleFactor: 1, mobile: false }, dNtp);
+    const gear = await P(dNtp, `(() => { const r = document.getElementById("settings-toggle").getBoundingClientRect(); return [r.left < 40, innerHeight - r.bottom < 40]; })()`);
+    check("settings button at the bottom left of the new tab page", gear.every(Boolean), gear);
+    await P(dNtp, `document.getElementById("settings-toggle").click()`);
+    await sleep(700);
+    const sd = await P(dNtp, `(() => { const d = document.getElementById("settings-drawer").getBoundingClientRect();
+      return [Math.round(d.left), Math.round(d.width / innerWidth * 100), getComputedStyle(document.querySelector("main")).transform !== "none",
+        [...document.querySelectorAll("#settings-drawer .card h2")].map(h => h.textContent).join("|")]; })()`);
+    check("settings drawer slides in from the left at about 30% width, page shrinks", sd[0] === 0 && sd[1] >= 28 && sd[1] <= 32 && sd[2]
+      && sd[3] === "Search engine|Colors|Container highlighting|Tabs|Keyboard shortcuts|Introduction", sd);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-settings-drawer.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, dNtp)).data, "base64"));
+    await P(dNtp, `document.getElementById("history-toggle").click()`);
+    await sleep(600);
+    check("opening history closes the settings drawer", await P(dNtp, `(() => { const r = document.documentElement.classList; return r.contains("history-open") && !r.contains("settings-open"); })()`));
+    await P(dNtp, `document.getElementById("settings-toggle").click()`);
+    await sleep(100);
+    await P(dNtp, `dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))`);
+    await sleep(100);
+    check("Escape closes the settings drawer", await P(dNtp, `!document.documentElement.className.includes("-open")`));
     check("browser default engine: generic placeholder", (await P(dNtp, `document.getElementById("q").placeholder`)) === "Search the web in Work");
     await B(`browser.tabs.remove(${dTab})`);
     const tabsShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);

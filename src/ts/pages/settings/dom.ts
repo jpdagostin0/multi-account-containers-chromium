@@ -21,8 +21,8 @@ export const card = (title: string, hint: string, ...kids: Node[]) =>
 export function toggle(label: string, desc: string, onChange: (on: boolean) => void) {
   const input = el("input", { type: "checkbox", className: "switch" });
   input.addEventListener("change", () => onChange(input.checked));
-  const node = el("label", { className: "row" },
-    el("span", { className: "row-text" }, el("span", { className: "row-label", textContent: label }), el("span", { className: "row-desc", textContent: desc })),
+  const node = el("label", { className: "setting" },
+    el("span", { className: "setting-text" }, el("span", { className: "setting-label", textContent: label }), el("span", { className: "setting-desc", textContent: desc })),
     input);
   return { node, input };
 }

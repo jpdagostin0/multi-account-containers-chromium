@@ -39,7 +39,7 @@ export function colorsSection(theme: ThemeApi): HTMLElement {
     const input = el("input", { type: "color" });
     const code = el("code", {});
     input.addEventListener("input", () => { s = { ...s, custom: { ...s.custom, [key]: input.value } }; render(); saveSoon(); });
-    return { key, input, code, node: el("label", { className: "color" }, input, el("span", { className: "row-text" }, el("span", { className: "row-label", textContent: label }), code)) };
+    return { key, input, code, node: el("label", { className: "color" }, input, el("span", { className: "setting-text" }, el("span", { className: "setting-label", textContent: label }), code)) };
   });
   const preview = el("div", { className: "preview" }, el("span", { textContent: "Tile" }), el("span", { textContent: "Another tile" }));
   const custom = el("div", {}, preset, el("div", { className: "colors" }, ...pickers.map((p) => p.node)), preview);

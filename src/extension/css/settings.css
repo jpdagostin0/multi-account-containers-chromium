@@ -43,7 +43,7 @@ main.settings {
   margin: 0 0 14px;
 }
 
-.row {
+.setting {
   align-items: center;
   display: flex;
   gap: 12px;
@@ -51,22 +51,22 @@ main.settings {
   padding: 10px 0;
 }
 
-.row + .row {
+.setting + .setting {
   border-top: 1px solid var(--border);
 }
 
-.row-text {
+.setting-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-inline-size: 0;
 }
 
-.row-label {
+.setting-label {
   font-size: 13.5px;
 }
 
-.row-desc {
+.setting-desc {
   color: var(--muted);
   font-size: 12px;
 }

@@ -12,7 +12,7 @@ export function highlightingSection(highlight: HighlightApi): HTMLElement {
     (on) => highlight.setSettings({ pageBorder: on }));
   const groups = toggle("Group container tabs", "Put each container's tabs in a tab group named and colored after it. Needs the tab group companion extension.",
     (on) => highlight.setSettings({ tabGroups: on }));
-  const note = el("p", { className: "row-desc" });
+  const note = el("p", { className: "setting-desc" });
 
   function render(): void {
     const h = highlight.status();

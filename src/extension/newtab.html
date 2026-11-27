@@ -8,11 +8,12 @@
   <title>New Tab</title>
   <link rel="stylesheet" href="css/newtab.css">
   <link rel="stylesheet" href="css/history-rows.css">
+  <link rel="stylesheet" href="css/settings.css">
 </head>
 <body>
   <nav id="container-tabs" aria-label="Switch this tab's container"></nav>
   <button id="history-toggle" type="button" aria-controls="history-drawer" aria-expanded="false"><span class="clock"></span>History</button>
-  <a id="settings-link" href="settings.html" title="Settings"><span class="gear"></span>Settings</a>
+  <button id="settings-toggle" type="button" aria-controls="settings-drawer" aria-expanded="false"><span class="gear"></span>Settings</button>
   <main>
     <form id="search">
       <input id="q" type="search" placeholder="Search the web" autocomplete="off" spellcheck="false">
@@ -20,7 +21,15 @@
     </form>
     <div id="sections"></div>
   </main>
-  <aside id="history-drawer" aria-label="History">
+  <aside id="settings-drawer" class="drawer settings" aria-label="Settings">
+    <div class="drawer-head">
+      <h2>Settings</h2>
+      <a class="full-settings" href="settings.html" title="Open the settings page">Open in a tab</a>
+      <button class="close" type="button" title="Close">×</button>
+    </div>
+    <div class="drawer-body"></div>
+  </aside>
+  <aside id="history-drawer" class="drawer" aria-label="History">
     <div class="drawer-head">
       <a class="full-history" href="history.html" title="Open the full history page">All history</a>
       <button class="close" type="button" title="Close">×</button>
