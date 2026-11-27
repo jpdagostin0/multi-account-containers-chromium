@@ -49,6 +49,7 @@
   const NEW_TAB_URLS = new Set([
     "chrome://newtab/", "chrome://new-tab-page/", "chrome://newtab",
   ]);
+  const OWN_NEW_TAB = base.runtime.getURL("newtab.html");
   const FIREFOX_NEW_TAB = new Set([
     "about:newtab", "about:home", "about:startpage",
   ]);
@@ -243,7 +244,7 @@
     tab.cookieStoreId = iso().get(tab.id);
     // Firefox always reports a URL; Chromium leaves it empty while loading.
     if (!tab.url) tab.url = tab.pendingUrl || "about:blank";
-    if (NEW_TAB_URLS.has(tab.url)) tab.url = "about:newtab";
+    if (NEW_TAB_URLS.has(tab.url) || tab.url === OWN_NEW_TAB) tab.url = "about:newtab";
     if (tab.groupId === undefined) tab.groupId = -1;
     return tab;
   }

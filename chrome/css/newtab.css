@@ -1,0 +1,193 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f9f9fb;
+  --fg: #15141a;
+  --muted: #5b5b66;
+  --tile: #fff;
+  --tile-hover: #f0f0f4;
+  --border: #e0e0e6;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1b22;
+    --fg: #fbfbfe;
+    --muted: #a8a8b3;
+    --tile: #2b2a33;
+    --tile-hover: #3a3944;
+    --border: #3a3944;
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  margin: 0;
+}
+
+main {
+  margin: 0 auto;
+  max-width: 920px;
+  padding: 10vh 24px 48px;
+}
+
+#search {
+  margin-bottom: 40px;
+}
+
+#q {
+  background: var(--tile);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+  font-size: 16px;
+  padding: 12px 20px;
+  width: 100%;
+}
+
+#q:focus {
+  border-color: var(--accent, #0061e0);
+  outline: none;
+}
+
+.container-section {
+  margin-bottom: 32px;
+}
+
+.container-section h2 {
+  align-items: center;
+  border-inline-start: 3px solid var(--c, var(--muted));
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding-inline-start: 10px;
+}
+
+.ident-icon {
+  background-color: var(--c, var(--muted));
+  block-size: 16px;
+  inline-size: 16px;
+  -webkit-mask: var(--icon) center / 16px no-repeat;
+  mask: var(--icon) center / 16px no-repeat;
+}
+
+.ident-icon:not([style*="--icon"]) {
+  border-radius: 50%;
+  -webkit-mask: none;
+  mask: none;
+  block-size: 10px;
+  inline-size: 10px;
+  margin-inline: 3px;
+  background: none;
+  border: 2px solid var(--muted);
+}
+
+.here {
+  background: color-mix(in srgb, var(--c, var(--muted)) 18%, transparent);
+  border-radius: 8px;
+  color: var(--muted);
+  display: none;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+}
+
+.current .here {
+  display: inline;
+}
+
+.tiles {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tile {
+  position: relative;
+}
+
+.tile a {
+  align-items: center;
+  background: var(--tile);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 var(--c, transparent);
+  color: inherit;
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.tile a:hover,
+.tile a:focus-visible {
+  background: var(--tile-hover);
+  outline: none;
+}
+
+.favicon {
+  background: center / 20px no-repeat;
+  block-size: 20px;
+  border-radius: 4px;
+  flex: 0 0 20px;
+  font-size: 12px;
+  font-weight: 700;
+  inline-size: 20px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.favicon.letter {
+  background-color: var(--c, var(--muted));
+  color: #fff;
+}
+
+.title {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hide {
+  background: var(--tile);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  display: none;
+  font-size: 13px;
+  block-size: 20px;
+  inline-size: 20px;
+  line-height: 16px;
+  padding: 0;
+  position: absolute;
+  inset-block-start: -6px;
+  inset-inline-end: -6px;
+}
+
+.tile:hover .hide {
+  display: block;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.tiles:not(:empty) + .empty {
+  display: none;
+}

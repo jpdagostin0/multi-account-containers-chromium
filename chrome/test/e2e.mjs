@@ -274,6 +274,59 @@ async function session(c, { withErrors = true } = {}) {
     check("removing a container purges its cookies", !jar2.some((n) => n.startsWith("MACC3~")), jar2);
 
     // -------------------------------------------------------------------------
+    // move site data between containers
+    // -------------------------------------------------------------------------
+    const mvTab = await B(`browser.tabs.create({url: "${ORIGIN}/set?n=mv&v=src"}).then(t => t.id)`);
+    const mv = await pageSession("n=mv&v=src");
+    await P(mv, `localStorage.setItem("mvkey", "moved"); new Promise(r => { const o = indexedDB.open("mvdb", 3);
+      o.onupgradeneeded = () => o.result.createObjectStore("s", {keyPath: "id"}).createIndex("by", "v");
+      o.onsuccess = () => { const tx = o.result.transaction("s", "readwrite"); tx.objectStore("s").put({id: 1, v: "row"}); tx.oncomplete = () => { o.result.close(); r(); }; }; })`);
+    await P(mv, `caches.open("mvcache").then(c => c.put("/x", new Response("cached-body")))`);
+    const res = await B(`__maccMoveData.moveSiteData(${mvTab}, "firefox-container-4")`);
+    check("move reports what it moved", res.cookies >= 2 && res.localStorage >= 1 && res.indexedDB === 1 && res.caches === 1, res);
+    await settle();
+    check("moved tab is now in the target container", (await B(`browser.tabs.get(${mvTab}).then(t => t.cookieStoreId)`)) === "firefox-container-4");
+    const mv2 = await pageSession("n=mv&v=src");
+    const mvCookies = await echo(mv2);
+    check("moved cookies arrive in the target container", mvCookies.includes("mv=src") && mvCookies.includes("http_mv=src"), mvCookies);
+    check("moved localStorage", (await P(mv2, "localStorage.getItem('mvkey')")) === "moved");
+    const row = await P(mv2, `new Promise(r => { const o = indexedDB.open("mvdb"); o.onsuccess = () => { const db = o.result;
+      const q = db.transaction("s").objectStore("s").index("by").get("row"); q.onsuccess = () => r([db.version, q.result && q.result.id]); }; })`);
+    check("moved IndexedDB (schema, index, version, rows)", JSON.stringify(row) === "[3,1]", row);
+    check("moved Cache Storage", (await P(mv2, `caches.match("/x").then(r => r ? r.text() : null)`)) === "cached-body");
+    const leftTab = await B(`browser.tabs.create({url: "${ORIGIN}/page?left=1"}).then(t => t.id)`);
+    const left = await pageSession("left=1");
+    const leftCookies = await echo(left);
+    check("source container no longer has the data", !leftCookies.includes("mv=") && (await P(left, "localStorage.getItem('mvkey')")) === null
+      && (await P(left, "indexedDB.databases().then(l => l.some(d => d.name === 'mvdb'))")) === false, leftCookies);
+    await B(`browser.tabs.remove([${mvTab}, ${leftTab}])`);
+
+    // -------------------------------------------------------------------------
+    // new tab page: top sites per container
+    // -------------------------------------------------------------------------
+    const ntpTab = await B(`browser.tabs.create({}).then(t => t.id)`);
+    const ntp = await pageSession("newtab");
+    await sleep(500);
+    const ntpSections = await P(ntp, `[...document.querySelectorAll("section")].map(s => [s.querySelector(".name").textContent, [...s.querySelectorAll(".tile a")].map(a => a.href)])`);
+    const work2 = ntpSections.find(([n]) => n === "Work");
+    check("new tab page lists top sites per container", ntpSections[0][0] === "No container" && work2 && work2[1].includes(`${ORIGIN}/set`) && work2[1].includes(`${ORIGIN}/csp`), ntpSections);
+    check("tab URL looks like Firefox's new tab to upstream", (await B(`browser.tabs.get(${ntpTab}).then(t => t.url)`)) === "about:newtab");
+    await P(ntp, `document.querySelector('section[data-container="firefox-container-2"] .tile a').click()`);
+    await settle();
+    check("clicking a container's tile opens it in that container", (await B(`browser.tabs.get(${ntpTab}).then(t => [t.cookieStoreId, t.url.startsWith("${ORIGIN}")].join())`)) === "firefox-container-2,true");
+    const ntpWork = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2"}).then(t => t.id)`);
+    await settle();
+    const ntpW = (await c.targets()).filter((t) => t.url.includes("newtab")).pop();
+    const ntpWs = await c.attach(ntpW.targetId);
+    await sleep(500);
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 750, deviceScaleFactor: 1, mobile: false }, ntpWs);
+    await sleep(300);
+    const ntpShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-newtab.png"), Buffer.from(ntpShot.data, "base64"));
+    check("container new tab puts its own container first", (await P(ntpWs, `document.querySelector("section.current .name").textContent`)) === "Work");
+    await B(`browser.tabs.remove(${ntpWork})`);
+
+    // -------------------------------------------------------------------------
     // per-container proxies
     // -------------------------------------------------------------------------
     await B(`browser.storage.local.set({proxifiedContainersKey: [

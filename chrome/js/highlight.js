@@ -238,6 +238,16 @@
     return url;
   }
 
+  /** Unmarked 32px copy of a site icon (new tab page tiles). */
+  async function plainIcon(href) {
+    const img = await loadImage(href);
+    if (!img) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 32;
+    canvas.getContext("2d").drawImage(img, 0, 0, 32, 32);
+    return canvas.toDataURL("image/png");
+  }
+
   chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     if (!msg || msg.__macc !== "favicon" || !sender.tab || sender.frameId !== 0) return undefined;
     const color = markerColor(iso.containerOf(sender.tab.id));
@@ -279,6 +289,7 @@
       await base.storage.local.set({ [SETTINGS_KEY]: { ...settings(), ...patch } });
     },
     syncAll,
+    plainIcon,
     groupOf: (windowId, n) => groups.get(`${windowId}:${n}`),
   };
 

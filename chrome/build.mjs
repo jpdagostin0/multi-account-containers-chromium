@@ -71,6 +71,7 @@ fs.cpSync(path.join(here, "icons"), path.join(out, "icons"), { recursive: true }
 // too; bake in a dark fill (the dark theme already inverts these icons).
 fs.appendFileSync(path.join(out, "css", "popup.css"), fs.readFileSync(path.join(here, "css", "chromium.css")));
 fs.appendFileSync(path.join(out, "css", "options.css"), fs.readFileSync(path.join(here, "css", "options.css")));
+fs.copyFileSync(path.join(here, "css", "newtab.css"), path.join(out, "css", "newtab.css"));
 for (const f of fs.readdirSync(path.join(out, "img"), { recursive: true })) {
   if (!String(f).endsWith(".svg")) continue;
   const file = path.join(out, "img", String(f));
@@ -98,7 +99,7 @@ for (const file of walk(out)) {
   const rel = path.relative(path.dirname(file), jsOut).split(path.sep).join("/");
   const scripts = ["browser-polyfill.js", "compat.js"];
   if (file === path.join(out, "js", "background", "index.html")) {
-    scripts.push("tldts.js", "purge.js", "isolation.js", "proxy.js", "highlight.js");
+    scripts.push("tldts.js", "purge.js", "isolation.js", "proxy.js", "highlight.js", "movedata.js", "topsites.js");
   }
   const tags = scripts.map((s) => `<script src="${rel}/${s}"></script>`).join("\n    ");
   const at = html.search(/<script\b/i);
@@ -132,7 +133,11 @@ manifest.permissions = [
   "proxy",
   "nativeMessaging",
   "privacy",
+  "topSites",
+  "search",
 ];
+// Our own new tab page: top sites per container.
+manifest.chrome_url_overrides = { newtab: "newtab.html" };
 manifest.optional_permissions = [];
 manifest.background = { page: manifest.background.page, persistent: true };
 manifest.browser_action = {

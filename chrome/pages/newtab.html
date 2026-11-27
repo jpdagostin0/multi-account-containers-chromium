@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>New Tab</title>
+  <link rel="stylesheet" href="css/newtab.css">
+</head>
+<body>
+  <main>
+    <form id="search">
+      <input id="q" type="search" placeholder="Search the web" autocomplete="off" spellcheck="false">
+    </form>
+    <div id="sections"></div>
+  </main>
+  <template id="section-tpl">
+    <section class="container-section">
+      <h2><span class="ident-icon"></span><span class="name"></span><span class="here">this tab</span></h2>
+      <ol class="tiles"></ol>
+      <p class="empty"></p>
+    </section>
+  </template>
+  <template id="tile-tpl">
+    <li class="tile">
+      <a>
+        <span class="favicon"></span>
+        <span class="title"></span>
+      </a>
+      <button class="hide" title="Remove from this list">×</button>
+    </li>
+  </template>
+  <script src="js/chrome/newtab.js"></script>
+</body>
+</html>

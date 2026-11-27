@@ -65,6 +65,42 @@ extension's options:
 - **Toolbar badge** (always on). The badge shows the container's initial, in
   its color.
 
+## Move site data to container
+
+Right-click a page, or the toolbar button, and choose **Move this site's data
+to container**, then pick a target, including **No container**. This moves
+the site's data out of the tab's current container and reopens the tab in the
+target container:
+
+- **cookies:** every cookie for the site (its registrable domain and all
+  subdomains)
+- **page storage:** the tab's origin's localStorage, sessionStorage, IndexedDB
+  (with schema, indexes and version) and Cache Storage
+
+This is handy when you logged into something before you set up containers.
+Where the target already has an entry with the same name, the moved entry
+replaces it. Page storage of other origins on the same site, such as an
+embedded login frame on a subdomain, isn't moved.
+
+## New tab page
+
+The extension replaces the new tab page. It shows your top sites grouped by
+container, plus **No container**, with the tab's own container first.
+
+- **Opening tiles:** clicking a tile opens it in that tile's container, even
+  from a new tab in a different container. Ctrl- or middle-click opens it in a
+  new background tab in that container.
+- **Hiding tiles:** the × on a tile removes it from the list.
+- **Search:** the search box uses your default search engine in the current
+  tab.
+- **How visits are counted:** Chromium's history is shared by all containers,
+  so the extension counts visits per container itself. "No container" starts
+  out seeded from Chromium's top sites. Site icons are stored without
+  cookies.
+
+Chromium asks once whether to keep the changed new tab page; choose **Keep
+it**.
+
 ## Per-container proxies
 
 Set a proxy under a container's **Advanced proxy settings** in the panel,
