@@ -13,6 +13,7 @@ import type { HighlightApi } from "../background/highlight";
 import type { HistoryApi } from "../background/history";
 import type { TopSitesApi } from "../background/topsites";
 import type { MoveDataApi } from "../background/movedata";
+import type { ThemeApi } from "../background/theme";
 
 export interface BackgroundGlobals {
   __maccIso: IsoApi;
@@ -21,6 +22,7 @@ export interface BackgroundGlobals {
   __maccHistory: HistoryApi;
   __maccTopSites: TopSitesApi;
   __maccMoveData: MoveDataApi;
+  __maccTheme: ThemeApi;
   __maccCompat: CompatApi;
 }
 export type BackgroundWindow = Window & BackgroundGlobals;
@@ -33,6 +35,7 @@ declare global {
   var __maccHistory: HistoryApi;
   var __maccTopSites: TopSitesApi;
   var __maccMoveData: MoveDataApi;
+  var __maccTheme: ThemeApi;
   /** Upstream background (js/background/assignManager.js). */
   var assignManager: { storageArea: { isExempted(url: string, tabId: number): boolean } } | undefined;
 

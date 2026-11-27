@@ -3,7 +3,7 @@
 A port of Mozilla's [Firefox Multi-Account Containers][upstream] to
 Chromium browsers that still run Manifest V2 extensions, such as
 [Helium](https://helium.computer). It keeps upstream's popup, options page,
-site assignments, locked containers, sync, keyboard shortcuts and
+site assignments, locked containers, keyboard shortcuts and
 per-container proxies. The extension files derived from upstream live in
 [`src/extension/`](src/extension), and a TypeScript compatibility layer in
 [`src/ts/`](src/ts) emulates what Chromium lacks.
@@ -82,6 +82,14 @@ This is handy when you logged into something before you set up containers.
 Where the target already has an entry with the same name, the moved entry
 replaces it. Page storage of other origins on the same site, such as an
 embedded login frame on a subdomain, isn't moved.
+
+## Browser theme
+
+Extension pages (popup, options, new tab, history) take their colors from
+the browser's theme. Chromium doesn't give extensions a theme's colors, so the
+proxy helper reads them from the theme's `manifest.json` in the profile.
+Without the helper, or with the default theme, pages follow the system
+light/dark setting. Choosing Light or Dark in the options page turns this off.
 
 ## New tab page
 
@@ -199,8 +207,8 @@ These come from Chromium itself. An extension can't change them:
   unaffected.
 - Saved passwords, history, and the fingerprint are shared. This is the same
   as in Firefox.
-- Mozilla VPN and the bookmark context menu are Firefox-only, so they're
-  hidden.
+- The bookmark context menu is Firefox-only, so it's hidden. Firefox Sync
+  and the Mozilla VPN integration were removed.
 
 ## Upstream
 

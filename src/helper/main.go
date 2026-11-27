@@ -45,7 +45,7 @@ import (
 	"h12.io/socks"
 )
 
-const version = "1.0.0"
+const version = "1.1.0"
 
 // Route is one container's upstream proxy. Type "" or "direct" means no proxy.
 type Route struct {
@@ -116,6 +116,9 @@ type request struct {
 	Site   string           `json:"site,omitempty"`
 	Routes map[string]Route `json:"routes,omitempty"`
 	Ctxs   []string         `json:"ctxs,omitempty"`
+	// theme
+	Extension string `json:"extension,omitempty"`
+	Version   string `json:"version,omitempty"`
 }
 
 func (h *helper) readMessages(r io.Reader) error {
@@ -171,6 +174,8 @@ func (h *helper) handle(req request) {
 		h.send(map[string]any{"type": "flush", "id": req.ID, "closed": closed})
 	case "ping":
 		h.send(map[string]any{"type": "pong", "id": req.ID})
+	case "theme":
+		h.send(map[string]any{"type": "theme", "id": req.ID, "theme": findTheme(req.Extension, req.Version)})
 	}
 }
 

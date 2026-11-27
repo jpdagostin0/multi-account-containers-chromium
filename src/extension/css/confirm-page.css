@@ -101,3 +101,14 @@ dfn {
   align-items: center;
   display: flex;
 }
+
+/* The browser theme's colors (ts/pages/theme.ts). */
+:root[data-browser-theme] body {
+  background: var(--macc-bg);
+  color: var(--macc-fg);
+}
+
+:root[data-browser-theme] #redirect-url {
+  background: var(--macc-tile);
+  color: var(--macc-fg);
+}

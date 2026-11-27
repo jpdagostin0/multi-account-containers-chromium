@@ -239,9 +239,7 @@ body {
 [data-theme="dark"] img.clear-storage-icon,
 [data-theme="dark"] img.delete-assignment,
 [data-theme="dark"] #edit-sites-assigned .menu-icon,
-[data-theme="dark"] #container-info-table .menu-icon,
-[data-theme="dark"] #always-open .menu-icon,
-[data-theme="dark"] #always-open-in .menu-icon {
+[data-theme="dark"] #container-info-table .menu-icon {
   filter: invert(0);
 }
 
@@ -1771,4 +1769,32 @@ tr:hover > td > .reset-button {
 .container-panel-row .clickable:hover .usercontext-icon,
 .container-panel-row .clickable:focus .usercontext-icon {
   background-color: #0094fb;
+}
+
+/* The browser theme's colors (ts/pages/theme.ts). */
+:root[data-browser-theme] {
+  --panel-bg-color: var(--macc-toolbar);
+  --bgColor: var(--macc-toolbar);
+  --bgDark: var(--macc-frame);
+  --text-color-primary: var(--macc-fg);
+  --text-normal-color: var(--macc-fg);
+  --menu-bg-hover-color: var(--macc-hover);
+  --menu-bg-active-color: var(--macc-active);
+  --panel-separator-color: var(--macc-border);
+  --controllerActive: var(--macc-active);
+  --input-bg-color: var(--macc-field);
+  --input-bg-focus-color: var(--macc-field);
+  --input-border-color: var(--macc-border-strong);
+  --button-bg-color-secondary: var(--macc-hover);
+  --button-bg-hover-color-secondary: var(--macc-active);
+  --button-bg-active-color-secondary: var(--macc-border-strong);
+  --toggle-off-bg-color: var(--macc-field);
+  --toggle-off-bg-focus-color: var(--macc-field);
+  --toggle-off-bg-hover-color: var(--macc-hover);
+  --toggle-off-bg-active-color: var(--macc-active);
+  --toggle-off-border-color: var(--macc-border-strong);
+  --toggle-on-handle-bg-color: var(--macc-toolbar);
+  --usercontext-bg-hover-color: var(--macc-hover);
+  --usercontext-bg-focus-color: var(--macc-hover);
+  --usercontext-bg-active-color: var(--macc-active);
 }

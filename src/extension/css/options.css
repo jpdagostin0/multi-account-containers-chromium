@@ -83,3 +83,13 @@ button {
   padding: 10px;
   white-space: pre-wrap;
 }
+
+/* The browser theme's colors (ts/pages/theme.ts). */
+:root[data-browser-theme] body {
+  background: var(--macc-bg);
+  color: var(--macc-fg);
+}
+
+:root[data-browser-theme] p {
+  color: var(--macc-muted);
+}

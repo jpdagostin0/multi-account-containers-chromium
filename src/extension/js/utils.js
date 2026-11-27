@@ -200,6 +200,11 @@ const Utils = {
     if (typeof currentTheme !== "undefined" && currentTheme !== "auto") {
       return currentTheme;
     }
+    // Set from the browser theme's colors by ts/pages/theme.ts.
+    const browserTheme = window.document.documentElement.dataset.browserTheme;
+    if (browserTheme) {
+      return browserTheme;
+    }
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
       return "dark";
     }

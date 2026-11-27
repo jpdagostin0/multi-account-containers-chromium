@@ -539,3 +539,13 @@ body {
   box-shadow: inset 3px 0 0 var(--c, var(--muted));
   font-weight: 600;
 }
+
+/* The browser theme's colors (ts/pages/theme.ts). */
+:root[data-browser-theme] {
+  --bg: var(--macc-bg);
+  --fg: var(--macc-fg);
+  --muted: var(--macc-muted);
+  --tile: var(--macc-tile);
+  --tile-hover: var(--macc-tile-hover);
+  --border: var(--macc-border);
+}

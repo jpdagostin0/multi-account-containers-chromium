@@ -483,6 +483,47 @@ async function session(c, { withErrors = true } = {}) {
     const sel = await P(pop, `["color", "icon"].map(k => { const i = document.querySelector('#edit-container-panel-choose-' + k + ' input:checked'); return i ? [i.value, getComputedStyle(i.nextElementSibling).backgroundColor] : null; })`);
     check("edit panel marks the current color and icon", sel[0] && sel[0][0] === "orange" && sel[1] && sel[1][0] === "briefcase"
       && sel.every((x) => x[1] !== "rgba(0, 0, 0, 0)"), sel);
+
+    // Browser theme: a theme extension's colors reach the extension pages.
+    const themeDir = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), "macc-theme-"));
+    fs.writeFileSync(path.join(themeDir, "manifest.json"), JSON.stringify({
+      name: "test theme", version: "1.0", manifest_version: 3,
+      theme: { colors: { frame: [17, 17, 27], toolbar: [30, 30, 46], ntp_background: [30, 30, 46], ntp_text: [205, 214, 244], omnibox_background: [17, 17, 27] } },
+    }));
+    const { id: themeId } = await c.send("Extensions.loadUnpacked", { path: themeDir });
+    let palette = null;
+    for (let i = 0; i < 30 && !palette; i++) {
+      await sleep(1500);
+      if (i % 4 === 3) await B("__maccTheme.refresh()");
+      palette = await B(`localStorage.getItem("maccBrowserTheme")`);
+    }
+    check("browser theme colors are picked up through the helper", palette && JSON.parse(palette).scheme === "dark", palette);
+    const themedTab = await B(`browser.tabs.create({}).then(t => t.id)`);
+    const themed = await pageSession("newtab");
+    await sleep(500);
+    const ntpLook = await P(themed, `[getComputedStyle(document.body).backgroundColor, getComputedStyle(document.body).color, getComputedStyle(document.documentElement).colorScheme]`);
+    check("new tab page uses the theme's colors", ntpLook[0] === "rgb(30, 30, 46)" && ntpLook[1] === "rgb(205, 214, 244)" && ntpLook[2] === "dark", ntpLook);
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 750, deviceScaleFactor: 1, mobile: false }, themed);
+    await sleep(300);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-theme-newtab.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, themed)).data, "base64"));
+    await P(pop, "location.reload()");
+    await sleep(1000);
+    const popLook = await P(pop, `[getComputedStyle(document.body).backgroundColor, document.documentElement.dataset.theme]`);
+    check("dark popup inverts the (baked black) always-open icon", (await P(pop, `getComputedStyle(document.querySelector("#always-open-in .menu-icon")).filter`)) === "invert(1)");
+    check("popup uses the theme's toolbar color", popLook[0] === "rgb(30, 30, 46)" && popLook[1] === "dark", popLook);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-theme-popup.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, pop)).data, "base64"));
+    await B(`browser.storage.local.set({currentTheme: "light"})`);
+    await sleep(500);
+    check("choosing Light in the options turns theme matching off", (await P(themed, `document.documentElement.dataset.browserTheme ?? null`)) === null);
+    await B(`browser.storage.local.set({currentTheme: "auto"})`);
+    await sleep(500);
+    await B(`browser.management.setEnabled("${themeId}", false)`);
+    await sleep(1500);
+    check("disabling the theme goes back to the default look", (await B(`localStorage.getItem("maccBrowserTheme")`)) === null
+      && (await P(themed, `document.documentElement.dataset.browserTheme ?? null`)) === null);
+    await B(`browser.tabs.remove(${themedTab})`);
   } catch (e) {
     failed++;
     console.error("ERROR", e.message);

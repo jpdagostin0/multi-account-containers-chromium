@@ -97,6 +97,7 @@ const bundles = [
   ["pages/history/index.ts", "history-page.js", "esm"],
   ["pages/options/index.ts", "options-chromium.js", "esm"],
   ["pages/proxy-status.ts", "proxy-status.js", "esm"],
+  ["pages/theme.ts", "theme.js", "iife"],
 ];
 await Promise.all(bundles.map(([entry, file, format]) => esbuild.build({
   entryPoints: [path.join(srcTs, entry)],
@@ -144,6 +145,11 @@ for (const file of walk(out)) {
   const at = html.search(/<script\b/i);
   if (at < 0) continue;
   html = `${html.slice(0, at)}${tags}\n    ${html.slice(at)}`;
+  // The theme script runs before any stylesheet or other script.
+  if (!file.endsWith(path.join("background", "index.html"))) {
+    const first = html.search(/<(script|link|style)\b/i);
+    html = `${html.slice(0, first)}<script src="${rel}/theme.js"></script>\n  ${html.slice(first)}`;
+  }
   if (file === path.join(out, "options.html")) {
     html = html.replace("</body>", `  <script type="module" src="${rel}/options-chromium.js"></script>\n  </body>`);
   }
