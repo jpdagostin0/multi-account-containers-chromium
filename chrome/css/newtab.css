@@ -68,7 +68,8 @@ main {
   font-size: 14px;
   font-weight: 600;
   gap: 8px;
-  margin: 0 0 12px;
+  margin: 0 0 14px;
+  min-block-size: 20px;
   padding-inline-start: 10px;
 }
 
@@ -81,20 +82,15 @@ main {
 }
 
 .ident-icon:not([style*="--icon"]) {
-  border-radius: 50%;
+  background: radial-gradient(circle, transparent 4px, var(--muted) 4.5px, var(--muted) 6px, transparent 6.5px);
   -webkit-mask: none;
   mask: none;
-  block-size: 10px;
-  inline-size: 10px;
-  margin-inline: 3px;
-  background: none;
-  border: 2px solid var(--muted);
 }
 
 .here {
-  background: color-mix(in srgb, var(--c, var(--muted)) 18%, transparent);
+  background: var(--c, var(--muted));
   border-radius: 8px;
-  color: var(--muted);
+  color: #fff;
   display: none;
   font-size: 11px;
   font-weight: 500;
@@ -123,12 +119,22 @@ main {
   background: var(--tile);
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: inset 3px 0 0 var(--c, transparent);
   color: inherit;
   display: flex;
   gap: 10px;
-  padding: 10px 12px;
+  overflow: hidden;
+  padding: 9px 12px;
+  position: relative;
   text-decoration: none;
+}
+
+.tile a::before {
+  background: var(--c, transparent);
+  content: "";
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 3px;
+  position: absolute;
 }
 
 .tile a:hover,
@@ -154,11 +160,26 @@ main {
   color: #fff;
 }
 
-.title {
-  font-size: 13px;
+.text {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.title,
+.host {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.title {
+  font-size: 13px;
+}
+
+.host {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .hide {

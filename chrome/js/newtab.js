@@ -79,6 +79,7 @@
         fav.textContent = (label(t.url, "").match(/[a-z0-9]/i) || ["•"])[0].toUpperCase();
       }
       li.querySelector(".title").textContent = label(t.url, t.title);
+      li.querySelector(".host").textContent = label(t.url, "");
       a.addEventListener("click", (e) => {
         if (e.button !== 0) return;
         e.preventDefault();
