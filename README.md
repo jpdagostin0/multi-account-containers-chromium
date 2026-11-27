@@ -2,14 +2,15 @@
 
 A port of Mozilla's [Firefox Multi-Account Containers][upstream] to
 Chromium browsers that still run Manifest V2 extensions, such as
-[Helium](https://helium.computer). It keeps upstream's popup, options page,
-site assignments, locked containers, keyboard shortcuts and
-per-container proxies. The extension files derived from upstream live in
+[Helium](https://helium.computer). It keeps upstream's popup, site
+assignments, locked containers and keyboard shortcuts, and adds a new tab
+page, per-container history and a settings page. Per-container proxies,
+Firefox Sync and the Mozilla VPN integration aren't included. The extension files derived from upstream live in
 [`src/extension/`](src/extension), and a TypeScript compatibility layer in
 [`src/ts/`](src/ts) emulates what Chromium lacks.
 
-Chromium has no `contextualIdentities` API, only one cookie jar per profile,
-and no per-request proxy hook. The port emulates them:
+Chromium has no `contextualIdentities` API and only one cookie jar per
+profile. The port emulates them:
 
 | Firefox | This port |
 | --- | --- |
@@ -19,7 +20,6 @@ and no per-request proxy hook. The port emulates them:
 | per-container DOM storage | a main-world shim namespaces `document.cookie`, `cookieStore`, `localStorage`/`sessionStorage`, IndexedDB, Cache Storage and `BroadcastChannel` with the same prefix. "Delete container data" and container removal wipe only that container's entries. |
 | per-container HTTP cache | a request bypasses the cache whenever another container holds cookies for that URL, so a response personalised for one container is never served to another |
 | per-container service workers | the first container to use an origin owns its workers, and their traffic is attributed to that container. If a second container uses the origin, the workers are removed and registration is disabled there. |
-| per-container proxies (`proxy.onRequest`) | a small local helper does the routing, see below |
 | "Always open in" (reopens in a new tab) | the tab switches container in place when the navigation commits; the confirm page is still shown unless "remember my decision" was ticked |
 | colored tab line | a toolbar badge, plus an optional page border and optional tab groups (see [Highlighting](#highlighting)) |
 
@@ -49,7 +49,7 @@ when it's off.
 
 Firefox draws a colored line on container tabs. Chromium doesn't let
 extensions style tabs, so the port offers these instead, all switchable in the
-extension's options:
+settings page:
 
 - **Page border** (off by default). A thin frame in the container's color is
   drawn around container pages.
@@ -78,13 +78,22 @@ Where the target already has an entry with the same name, the moved entry
 replaces it. Page storage of other origins on the same site, such as an
 embedded login frame on a subdomain, isn't moved.
 
-## Browser theme
+## Settings
 
-Extension pages (popup, options, new tab, history) take their colors from
-the browser's theme. Chromium doesn't give extensions a theme's colors, so the
-proxy helper reads them from the theme's `manifest.json` in the profile.
-Without the helper, or with the default theme, pages follow the system
-light/dark setting. Choosing Light or Dark in the options page turns this off.
+The extension's options open its settings page:
+
+- **Search engine:** the new tab page's search box uses the browser's default
+  engine, one of the common engines (DuckDuckGo, Google, Brave, Startpage,
+  Kagi, Bing, Ecosia, Qwant), or your own: a search URL and an optional
+  suggestions URL, with `%s` where the terms go. Chromium doesn't tell
+  extensions which engine is the default, so the browser default has no
+  suggestions.
+- **Colors:** pages and the toolbar panel follow the system's light or dark
+  mode, stay light or dark, or use custom background, surface and text colors.
+  There are presets such as Catppuccin, Nord, Gruvbox and Tokyo Night.
+- **Highlighting, tabs, shortcuts:** the page border and tab group switches,
+  whether "Always open in" replaces the tab, which container each keyboard
+  shortcut opens, and the introduction.
 
 ## New tab page
 
@@ -95,8 +104,9 @@ container, plus **No container**, with the tab's own container first.
   from a new tab in a different container. Ctrl- or middle-click opens it in a
   new background tab in that container.
 - **Hiding tiles:** the × on a tile removes it from the list.
-- **Search:** the search box uses your default search engine in the current
-  tab.
+- **Search:** the search box uses the engine from the settings page, in the
+  tab's container. Suggestions come from the engine (fetched without cookies),
+  your open tabs and this container's history.
 - **How visits are counted:** Chromium's history is shared by all containers,
   so the extension counts visits per container itself, per site (origin)
   rather than per page: a tile opens the site's front page. "No container"
@@ -126,44 +136,6 @@ single-page apps.
 Chromium asks once whether to keep the changed new tab page; choose **Keep
 it**.
 
-## Per-container proxies
-
-Set a proxy under a container's **Advanced proxy settings** in the panel,
-exactly as in Firefox (`http://`, `https://`, `socks://` = SOCKS5, `socks4://`,
-optionally `user:pass@`).
-
-Chromium only allows one proxy configuration per browser, and PAC scripts
-never see the tab, so routing happens in `macc-proxy-helper`. It's a small Go
-program that the browser starts on demand through native messaging. Install
-it once:
-
-```sh
-cd src/helper && ./install.sh     # needs Go; or use the release tarball
-```
-
-While any container has a proxy, the extension points the browser at the
-helper and tags every connection with its container. The helper challenges
-each new connection with `407`, and `webRequest.onAuthRequired`, which knows
-the tab, answers with a one-time token for that container. The helper then
-routes the connection through that container's upstream proxy, or connects
-directly for containers without one. Tokens are single-use, so Chromium's
-cached proxy credentials can't tag a connection with the wrong container.
-
-The proxy setup fails closed:
-
-- If the helper isn't running or another extension controls the proxy
-  setting, tabs in proxied containers don't load. They show a page explaining
-  why, and nothing falls back to a direct connection.
-- Chromium pools connections per top-level site, not per tab. So the same site
-  can't be open at the same time in two containers that reach the internet
-  differently. The second one gets an explanation page with a button to close
-  the other tabs. Old tunnels for a site are closed before it opens under a
-  different route.
-- While proxies are on, WebRTC is limited to proxied connections and DNS
-  prefetching is turned off.
-
-The options page shows the helper's status.
-
 ## Build
 
 ```sh
@@ -174,7 +146,7 @@ node build.mjs --zip  # -> dist/chromium/, dist/chromium-tabgroups/, dist/*.zip
 ```
 
 `build.mjs` copies `extension/`, bundles `ts/` with esbuild, injects the compat layer into every page,
-adds the isolation and proxy modules to the background page, rewrites the
+adds the isolation, history and search modules to the background page, rewrites the
 manifest for Chromium, and fixes up locale files that Firefox accepts but
 Chromium refuses to load.
 
@@ -184,12 +156,11 @@ Chromium refuses to load.
 node src/test/e2e.mjs      # BROWSER=chromium for another browser
 ```
 
-This starts test servers, two upstream proxies and the helper, then drives a
-headless browser over CDP. It checks cookie, storage, cache and service-worker
-isolation in both directions, container inheritance, restore, strict-CSP
-pages, per-container wipes, site assignment, container deletion, proxy
-routing over HTTP and HTTPS, the same-site conflict guard, and fail-closed
-behaviour without the helper.
+This starts a test server, then drives a headless browser over CDP. It checks
+cookie, storage, cache and service-worker isolation in both directions,
+container inheritance, restore, strict-CSP pages, per-container wipes, site
+assignment, container deletion, the new tab page, search, history and the
+settings page.
 
 ## Remaining limits
 
@@ -198,13 +169,12 @@ These come from Chromium itself. An extension can't change them:
 - HTTP authentication (Basic/Digest) is shared between containers. Chromium
   adds cached credentials below the extension layer, where `webRequest` can't
   see or strip them.
-- A site can't be open in two containers at the same time if their proxies
-  differ (see above). Containers with the same proxy, or no proxy, are
-  unaffected.
 - Saved passwords, history, and the fingerprint are shared. This is the same
   as in Firefox.
-- The bookmark context menu is Firefox-only, so it's hidden. Firefox Sync
-  and the Mozilla VPN integration were removed.
+- The bookmark context menu is Firefox-only, so it's hidden.
+- Per-container proxies aren't supported. Chromium has one proxy setting per
+  browser, and doing it per container needs a native program outside the
+  extension.
 
 ## Upstream
 

@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// Search for the new tab page: the engine (custom or the browser's default),
-// its suggestions, and matching open tabs.
+// Search for the new tab page: the chosen engine, its suggestions, and
+// matching open tabs.
 
 import { base } from "../base";
-import { browserEngine, customEngine, engine, fillTemplate, setCustomEngine } from "./engine";
+import { engine, fillTemplate, PRESETS, setEngine } from "./engine";
 import { suggest, tabs } from "./suggest";
 
 export type { Engine } from "./engine";
@@ -14,9 +14,8 @@ export type { TabMatch } from "./suggest";
 
 export const search = {
   engine,
-  browserEngine,
-  customEngine,
-  setCustomEngine,
+  setEngine,
+  presets: PRESETS,
   suggest,
   tabs,
   /** The engine's results page for text, or null to let chrome.search pick. */
@@ -31,5 +30,3 @@ export const search = {
   },
 };
 export type SearchApi = typeof search;
-
-browserEngine(); // warm the cache before the first new tab

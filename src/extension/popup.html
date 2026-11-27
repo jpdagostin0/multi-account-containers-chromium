@@ -206,10 +206,6 @@
         <button class="container-options blue-link" id="manage-assigned-sites-list" tabindex="0" data-i18n-message-id="manageSiteList"></button>
       </div>
     </div>
-    <button id="advanced-proxy-settings-btn" class="proxy-section advanced-proxy-settings-btn">
-      <span class="advanced-proxy-settings-btn-label" data-i18n-message-id="advancedProxySettings"></span>
-      <span id="advanced-proxy-address"></span>
-    </button>
     <hr>
     <button class="delete-container delete-btn alert-text" id="delete-container-button" data-i18n-message-id="deleteThisContainer"></button>
 
@@ -262,33 +258,8 @@
     </div>
   </div>
 
-  <div class="hide panel advanced-proxy-settings-panel" id="advanced-proxy-settings-panel">
-    <h3 class="title proxy-panel-title" id="advanced-proxy-settings-title">
-      <span data-i18n-message-id="advancedProxySettings"></span>
-      <div class="flx-row">
-        <p data-identity-color="" class="proxy-title-container-color"></p>
-        <span id="proxy-title-container-name"></span>
-        </div>
-    </h3>
-    <button class="btn-return arrow-left controller" id="advanced-proxy-settings-return"></button>
-    <form class="advanced-proxy-panel-content">
-      <label class="advanced-proxy-input-label" for="container-proxy" data-i18n-message-id="advancedProxySettings"></label>
-      <div class="advanced-proxy-input-wrapper">
-        <input id="edit-advanced-proxy-input" class="proxy-host primary-input" name="container-proxy" type="text" placeholder="type://host:port" />
-        <button id="clear-advanced-proxy-input" class="controller" data-i18n-attribute="value" data-i18n-attribute-message-id="clearproxylabel"></button>
-        <span class="proxy-validity" data-i18n-message-id="invalidProxyAlert"></span>
-      </div>
-      <button id="submit-advanced-proxy" class="primary-cta apply-to-container" data-i18n-message-id="applyToContainer"></button>
-      <a id="advanced-proxy-settings-learn-more" href="" class="blue-link" data-i18n-message-id="learnMore"></a>
-    </form>
-    <div id="permissions-overlay" class="permissions-overlay" data-tab-group="proxy-disabled">
-      <p data-tab-group="proxy-disabled" data-i18n-message-id="additionalPermissionNeeded"></p>
-      <button id="enable-proxy-permissions" class="primary-cta" data-tab-group="proxy-disabled" data-i18n-message-id="enable"></button>
-    </div>
-  </div>
   <script src="js/utils.js"></script>
   <script src="js/containerStyle.js"></script>
   <script src="js/popup.js"></script>
-  <script src="js/proxified-containers.js"></script>
 </body>
 </html>

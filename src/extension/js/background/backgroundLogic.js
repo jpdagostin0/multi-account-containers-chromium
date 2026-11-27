@@ -138,10 +138,6 @@ const backgroundLogic = {
       case "bookmarks":
         assignManager.resetBookmarksMenuItem();
         break;
-
-      case "proxy":
-        assignManager.maybeAddProxyListeners();
-        break;
       }
     });
   },
@@ -185,9 +181,6 @@ const backgroundLogic = {
     }
 
     assignManager.deleteContainer(userContextId);
-
-    // Now remove the identity->proxy association in proxifiedContainers also
-    proxifiedContainers.delete(this.cookieStoreId(userContextId));
 
     return {done: true, userContextId};
   },

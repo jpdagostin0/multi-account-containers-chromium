@@ -2,7 +2,7 @@
 //
 //   node src/test/e2e.mjs        (BROWSER=chromium to use another browser)
 //
-// Starts its own test servers, two upstream proxies and the proxy helper.
+// Starts its own test server.
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -13,13 +13,8 @@ import { launch, extDir, sleep } from "./cdp.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const EXT_ID = "onhincpcieoahedkojoldccglpaokjln";
 const COMPANION_ID = "jeedhomnaldfldmfkfekpifefpfcpbll";
-const LAN = execFileSync("ip", ["-4", "route", "get", "1.1.1.1"]).toString().match(/src (\S+)/)[1];
 const ORIGIN = "http://127.0.0.1:8765";
 const ALT = "http://localhost:8765";
-const PLAIN = `http://${LAN}:8767`;
-const TLS = `https://${LAN}:8766`;
-const UP_A = 8781;
-const UP_B = 8782;
 
 let failed = 0;
 const check = (name, ok, detail) => {
@@ -34,24 +29,7 @@ const py = (...args) => {
   return p;
 };
 py(path.join(here, "server.py"), "8765", "127.0.0.1");
-py(path.join(here, "server.py"), "8767", LAN, "8766");
-py(path.join(here, "upstream.py"), String(UP_A), "A");
-py(path.join(here, "upstream.py"), String(UP_B), "B");
 
-const helperBin = path.join(fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), "macc-helper-")), "macc-proxy-helper");
-const go = fs.existsSync(path.join(os.homedir(), ".local/go/bin/go")) ? path.join(os.homedir(), ".local/go/bin/go") : "go";
-execFileSync(go, ["build", "-o", helperBin, "."], { cwd: path.join(here, "..", "helper"), stdio: "inherit" });
-const installHelper = (profile) => {
-  const dir = path.join(profile, "NativeMessagingHosts");
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "io.github.jpdagostin0.macc_proxy.json"), JSON.stringify({
-    name: "io.github.jpdagostin0.macc_proxy",
-    description: "test",
-    path: helperBin,
-    type: "stdio",
-    allowed_origins: [`chrome-extension://${EXT_ID}/`],
-  }));
-};
 await sleep(1500);
 
 async function session(c, { withErrors = true } = {}) {
@@ -99,20 +77,7 @@ async function session(c, { withErrors = true } = {}) {
 // isolation
 // ---------------------------------------------------------------------------
 {
-  // A default search engine on the test server (Chromium mirrors the chosen
-  // engine into Preferences, where the helper reads it).
-  const withEngine = (profile) => {
-    installHelper(profile);
-    const engine = {
-      short_name: "Test Engine", keyword: "test", url: `${ORIGIN}/search?q={searchTerms}`,
-      suggestions_url: `${ORIGIN}/suggest?q={searchTerms}`, synced_guid: "0f3c6e1e-5a47-4d0e-9a4e-1d3a2b7c9e01",
-    };
-    fs.mkdirSync(path.join(profile, "Default"), { recursive: true });
-    fs.writeFileSync(path.join(profile, "Default", "Preferences"), JSON.stringify({
-      default_search_provider_data: { template_url_data: engine, mirrored_template_url_data: engine },
-    }));
-  };
-  const c = await launch({ args: ["--ignore-certificate-errors"], prepare: withEngine });
+  const c = await launch();
   let errors = [];
   try {
     const { id: extId, B, settle, pageSession, P, echo, errors: errs } = await session(c);
@@ -355,13 +320,14 @@ async function session(c, { withErrors = true } = {}) {
     const visited = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2", url: "${ORIGIN}/page?visited-once=1"}).then(t => t.id)`);
     await settle();
     await B(`browser.tabs.remove(${visited})`);
+    await B(`__maccSearch.setEngine({name: "Test Engine", url: "${ORIGIN}/search?q=%s", suggestionsUrl: "${ORIGIN}/suggest?q=%s"})`);
     const sTab = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2"}).then(t => t.id)`);
     await settle();
     const sT = (await c.targets()).filter((t) => t.url.includes("newtab")).pop();
     const sNtp = await c.attach(sT.targetId);
     await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 750, deviceScaleFactor: 1, mobile: false }, sNtp);
     await sleep(800);
-    check("search box names the default engine", (await P(sNtp, `document.getElementById("q").placeholder`)) === "Search Test Engine in Work",
+    check("search box names the chosen engine", (await P(sNtp, `document.getElementById("q").placeholder`)) === "Search Test Engine in Work",
       await P(sNtp, `document.getElementById("q").placeholder`));
     await P(sNtp, `(() => { const q = document.getElementById("q"); q.focus(); q.value = "macc"; q.dispatchEvent(new Event("input")); })()`);
     await sleep(1500);
@@ -385,8 +351,8 @@ async function session(c, { withErrors = true } = {}) {
     const target = await P(sNtp, `(() => { const li = document.querySelector('#suggest li[data-kind="tab"]'); li.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })); return true; })()`);
     await sleep(800);
     check("picking an open tab switches to it and closes the new tab", target && (await B(`browser.tabs.get(${sTab}).then(() => "open", () => "closed")`)) === "closed");
-    // A custom engine from the options page replaces the browser's.
-    await B(`__maccSearch.setCustomEngine({name: "Mine", url: "${ORIGIN}/search?q=%s", suggestionsUrl: "${ORIGIN}/suggest?q=%s"})`);
+    // Another engine (as picked in the settings page) takes over.
+    await B(`__maccSearch.setEngine({name: "Mine", url: "${ORIGIN}/search?q={searchTerms}"})`);
     const cTab = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2"}).then(t => t.id)`);
     await settle();
     let cNtp = null;
@@ -396,12 +362,18 @@ async function session(c, { withErrors = true } = {}) {
     }
     await sleep(800);
     const cHolder = await P(cNtp, `document.getElementById("q").placeholder`);
-    check("custom search engine is used", cHolder === "Search Mine in Work", cHolder);
+    check("changed search engine is used", cHolder === "Search Mine in Work", cHolder);
     await P(cNtp, `(() => { const q = document.getElementById("q"); q.value = "hello there"; document.getElementById("search").requestSubmit(); })()`);
     await settle();
     const cUrl = await B(`browser.tabs.get(${cTab}).then(t => [t.url, t.cookieStoreId].join(" "))`);
-    check("searching opens the custom engine in the tab's container", cUrl === `${ORIGIN}/search?q=hello%20there firefox-container-2`, cUrl);
-    await B(`__maccSearch.setCustomEngine(null).then(() => browser.tabs.remove(${cTab}))`);
+    check("searching opens the engine in the tab's container", cUrl === `${ORIGIN}/search?q=hello%20there firefox-container-2`, cUrl);
+    await B(`__maccSearch.setEngine(null).then(() => browser.tabs.remove(${cTab}))`);
+    const dTab = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2"}).then(t => t.id)`);
+    await settle();
+    const dNtp = await pageSession("newtab");
+    await sleep(500);
+    check("browser default engine: generic placeholder", (await P(dNtp, `document.getElementById("q").placeholder`)) === "Search the web in Work");
+    await B(`browser.tabs.remove(${dTab})`);
     const tabsShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-ctabs.png"), Buffer.from(tabsShot.data, "base64"));
     await B(`browser.tabs.remove(${ntpWork})`);
@@ -453,50 +425,28 @@ async function session(c, { withErrors = true } = {}) {
     check("clearing a container's history", (await hq({ n: 2 })).length === 0 && (await hq({ n: 0 })).length > 0);
     await B(`browser.tabs.remove(${spaTab})`);
 
-    // -------------------------------------------------------------------------
-    // per-container proxies
-    // -------------------------------------------------------------------------
-    await B(`browser.storage.local.set({proxifiedContainersKey: [
-      {cookieStoreId: "firefox-container-2", proxy: {type: "http", host: "127.0.0.1", port: "${UP_A}"}},
-      {cookieStoreId: "firefox-container-4", proxy: {type: "http", host: "127.0.0.1", port: "${UP_B}"}}
-    ]})`);
-    let st;
-    for (let i = 0; i < 50; i++) {
-      st = await B("__maccProxy.status()");
-      if (st.applied) break;
-      await sleep(100);
-    }
-    check("proxy helper started and PAC applied", st.helperRunning && st.applied, st);
-
-    const stats = async (port) => JSON.parse(execFileSync("curl", ["-s", `http://127.0.0.1:${port}/stats`]).toString());
-    await B(`browser.tabs.create({cookieStoreId: "firefox-container-2", url: "${PLAIN}/page?proxied=a"})`);
+    // Settings page
+    await B(`browser.runtime.openOptionsPage()`);
     await settle();
-    const pa = await pageSession("proxied=a");
-    const viaA = await P(pa, "fetch('/echo').then(r => r.json())");
-    check("container 2 plain HTTP goes through upstream A", viaA.upstream === "A", viaA);
-
-    await B(`browser.tabs.create({cookieStoreId: "firefox-container-4", url: "${TLS}/page?proxied=b"})`);
-    await settle();
-    const pb = await pageSession("proxied=b");
-    await P(pb, "fetch('/echo').then(r => r.json())");
-    const [sa, sb] = [await stats(UP_A), await stats(UP_B)];
-    check("container 4 HTTPS tunnels through upstream B only",
-      (sb.connect[`${LAN}:8766`] || 0) > 0 && !sa.connect[`${LAN}:8766`], { A: sa, B: sb });
-    check("container 4 never touched upstream A for its site", !sa.forward[`${LAN}:8766`]);
-
-    const plainDefault = await B(`browser.tabs.create({url: "${PLAIN}/page?default=1"}).then(t => t.id)`);
-    await settle();
-    const conflictUrl = await B(`browser.tabs.get(${plainDefault}).then(t => t.url)`);
-    check("same site in a differently-proxied container is refused", conflictUrl.includes("proxy-status.html?reason=conflict"), conflictUrl);
-
-    await B(`browser.tabs.create({cookieStoreId: "firefox-container-1", url: "chrome-extension://${extId}/options.html"})`);
-    await settle();
-    const opt = await pageSession("/options.html");
+    const opt = await pageSession("/settings.html");
     await sleep(500);
-    const optText = await P(opt, "document.getElementById('macc-proxy-status').innerText");
-    check("options page shows proxy status", /routing 2 container/.test(optText), optText);
-    const optLeft = await P(opt, "document.body.innerText.match(/.{0,30}(sync|vpn|mozilla|firefox).{0,30}/i)?.[0] ?? null");
-    check("options page has no Sync or Mozilla VPN settings", optLeft === null, optLeft);
+    const cards = await P(opt, `[...document.querySelectorAll(".card h2")].map(h => h.textContent)`);
+    check("settings page sections", JSON.stringify(cards) === JSON.stringify(["Search engine", "Colors", "Container highlighting", "Tabs", "Keyboard shortcuts", "Introduction"]), cards);
+    const optLeft = await P(opt, "document.body.innerText.match(/.{0,30}(sync|vpn|mozilla|firefox|proxy|helper).{0,30}/i)?.[0] ?? null");
+    check("settings page has no Sync, VPN, proxy or helper settings", optLeft === null, optLeft);
+    await P(opt, `(() => { const s = document.getElementById("engine"); s.value = [...s.options].find(o => o.textContent === "DuckDuckGo").value; s.dispatchEvent(new Event("change")); })()`);
+    await sleep(300);
+    check("picking an engine in settings saves it", (await B(`__maccSearch.engine().then(e => e && e.name)`)) === "DuckDuckGo");
+    await P(opt, `(() => { const s = document.getElementById("engine"); s.value = "custom"; s.dispatchEvent(new Event("change")); })()`);
+    await P(opt, `(() => { const [n, u] = document.querySelectorAll(".custom-engine input"); n.value = "Bad"; u.value = "https://example.com/"; document.querySelector(".custom-engine .primary").click(); })()`);
+    await sleep(300);
+    check("custom engine without %s is refused", /needs %s/.test(await P(opt, `document.querySelector(".custom-engine .saved").textContent`))
+      && (await B(`__maccSearch.engine().then(e => e && e.name)`)) === "DuckDuckGo");
+    await B(`__maccSearch.setEngine(null)`);
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 1400, deviceScaleFactor: 1, mobile: false }, opt);
+    await sleep(300);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-settings.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, opt)).data, "base64"));
 
     // Onboarding ends after its fourth panel (the Firefox-only ones are gone).
     await B(`browser.storage.local.set({"onboarding-stage": 3})`);
@@ -519,38 +469,29 @@ async function session(c, { withErrors = true } = {}) {
     const rows = await P(pop, "[...document.querySelectorAll('#identities-list .menu-item-name, .identities-list .menu-item-name, [data-identity-cookie-store-id]')].map(e => e.textContent.trim()).filter(Boolean)");
     check("popup lists containers", rows.join(" ").includes("Work") && rows.join(" ").includes("Test"), rows);
 
-    // Edit panel of a proxied container: Firefox's proxy UI, no Mozilla VPN.
+    // Edit panel: no proxy or Mozilla VPN UI.
     await P(pop, `browser.contextualIdentities.get("firefox-container-2").then(i => Logic.showPanel("containerEdit", i))`);
     await sleep(800);
     const editShot = await c.send("Page.captureScreenshot", { format: "png" }, pop);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-edit.png"), Buffer.from(editShot.data, "base64"));
-    const proxyLabel = await P(pop, "document.getElementById('advanced-proxy-address').textContent");
-    check("edit panel shows the container's proxy", proxyLabel === `http://127.0.0.1:${UP_A}`, proxyLabel);
+    check("edit panel has no proxy settings", await P(pop, "!document.querySelector('[id*=proxy]')"));
     { const brand = await P(pop, "[(document.body.innerText + document.title).match(/.{0,40}(firefox|mozilla).{0,40}/i)?.[0] ?? null, document.querySelector('moz-vpn-container-ui, img[src*=mozilla]')?.outerHTML ?? null]");
       check("popup has no Firefox branding or Mozilla VPN UI", brand[0] === null && brand[1] === null, brand); }
     const sel = await P(pop, `["color", "icon"].map(k => { const i = document.querySelector('#edit-container-panel-choose-' + k + ' input:checked'); return i ? [i.value, getComputedStyle(i.nextElementSibling).backgroundColor] : null; })`);
     check("edit panel marks the current color and icon", sel[0] && sel[0][0] === "orange" && sel[1] && sel[1][0] === "briefcase"
       && sel.every((x) => x[1] !== "rgba(0, 0, 0, 0)"), sel);
 
-    // Browser theme: a theme extension's colors reach the extension pages.
-    const themeDir = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), "macc-theme-"));
-    fs.writeFileSync(path.join(themeDir, "manifest.json"), JSON.stringify({
-      name: "test theme", version: "1.0", manifest_version: 3,
-      theme: { colors: { frame: [17, 17, 27], toolbar: [30, 30, 46], ntp_background: [30, 30, 46], ntp_text: [205, 214, 244], omnibox_background: [17, 17, 27] } },
-    }));
-    const { id: themeId } = await c.send("Extensions.loadUnpacked", { path: themeDir });
-    let palette = null;
-    for (let i = 0; i < 30 && !palette; i++) {
-      await sleep(1500);
-      if (i % 4 === 3) await B("__maccTheme.refresh()");
-      palette = await B(`localStorage.getItem("maccBrowserTheme")`);
-    }
-    check("browser theme colors are picked up through the helper", palette && JSON.parse(palette).scheme === "dark", palette);
+    // Custom colors from the settings page reach every extension page.
+    await P(opt, `[...document.querySelectorAll(".segmented button")].find(b => b.textContent === "Custom").click()`);
+    await P(opt, `(() => { const s = document.querySelector(".card:nth-of-type(2) select"); s.value = "Catppuccin Mocha"; s.dispatchEvent(new Event("change")); })()`);
+    await sleep(600);
+    const palette = await B(`localStorage.getItem("maccPalette")`);
+    check("custom colors saved as the page palette", palette && JSON.parse(palette).scheme === "dark", palette);
     const themedTab = await B(`browser.tabs.create({}).then(t => t.id)`);
     const themed = await pageSession("newtab");
     await sleep(500);
     const ntpLook = await P(themed, `[getComputedStyle(document.body).backgroundColor, getComputedStyle(document.body).color, getComputedStyle(document.documentElement).colorScheme]`);
-    check("new tab page uses the theme's colors", ntpLook[0] === "rgb(30, 30, 46)" && ntpLook[1] === "rgb(205, 214, 244)" && ntpLook[2] === "dark", ntpLook);
+    check("new tab page uses the custom colors", ntpLook[0] === "rgb(30, 30, 46)" && ntpLook[1] === "rgb(205, 214, 244)" && ntpLook[2] === "dark", ntpLook);
     await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 750, deviceScaleFactor: 1, mobile: false }, themed);
     await sleep(300);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-theme-newtab.png"),
@@ -559,50 +500,25 @@ async function session(c, { withErrors = true } = {}) {
     await sleep(1000);
     const popLook = await P(pop, `[getComputedStyle(document.body).backgroundColor, document.documentElement.dataset.theme]`);
     check("dark popup inverts the (baked black) always-open icon", (await P(pop, `getComputedStyle(document.querySelector("#always-open-in .menu-icon")).filter`)) === "invert(1)");
-    check("popup uses the theme's toolbar color", popLook[0] === "rgb(30, 30, 46)" && popLook[1] === "dark", popLook);
+    check("popup uses the custom colors", popLook[0] === "rgb(30, 30, 46)" && popLook[1] === "dark", popLook);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-theme-popup.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, pop)).data, "base64"));
-    await B(`browser.storage.local.set({currentTheme: "light"})`);
-    await sleep(500);
-    check("choosing Light in the options turns theme matching off", (await P(themed, `document.documentElement.dataset.browserTheme ?? null`)) === null);
-    await B(`browser.storage.local.set({currentTheme: "auto"})`);
-    await sleep(500);
-    await B(`browser.management.setEnabled("${themeId}", false)`);
-    await sleep(1500);
-    check("disabling the theme goes back to the default look", (await B(`localStorage.getItem("maccBrowserTheme")`)) === null
-      && (await P(themed, `document.documentElement.dataset.browserTheme ?? null`)) === null);
+    await P(opt, `[...document.querySelectorAll(".segmented button")].find(b => b.textContent === "Light").click()`);
+    await sleep(600);
+    const light = await P(themed, `[document.documentElement.dataset.browserTheme, getComputedStyle(document.body).backgroundColor]`);
+    check("Light colors in settings", light[0] === "light" && light[1] === "rgb(249, 249, 251)", light);
+    await P(opt, `[...document.querySelectorAll(".segmented button")].find(b => b.textContent === "System").click()`);
+    await sleep(600);
+    check("System colors: no palette", (await B(`localStorage.getItem("maccPalette")`)) === null
+      && (await P(themed, `document.documentElement.dataset.browserTheme ?? null`)) === null
+      && (await B(`browser.storage.local.get("currentTheme").then(s => s.currentTheme)`)) === "auto");
     await B(`browser.tabs.remove(${themedTab})`);
   } catch (e) {
     failed++;
     console.error("ERROR", e.message);
   } finally {
-    const relevant = errors.filter((e) => !/mozillavpn|native messaging host not found/i.test(e));
+    const relevant = errors.filter((e) => !/mozillavpn/i.test(e));
     if (relevant.length) console.log("background errors:\n  " + relevant.join("\n  "));
-    c.close();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// fail closed without the helper
-// ---------------------------------------------------------------------------
-{
-  const c = await launch();
-  try {
-    const { B, settle } = await session(c, { withErrors: false });
-    await B(`browser.storage.local.set({proxifiedContainersKey: [
-      {cookieStoreId: "firefox-container-2", proxy: {type: "socks", host: "127.0.0.1", port: "1"}}]})`);
-    await sleep(500);
-    const t = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2", url: "${ORIGIN}/page?noproxy=1"}).then(t => t.id)`);
-    await settle();
-    const url = await B(`browser.tabs.get(${t}).then(t => t.url)`);
-    check("proxied container is blocked when the helper is missing", url.includes("proxy-status.html?reason=unavailable"), url);
-    const d = await B(`browser.tabs.create({url: "${ORIGIN}/page?unproxied=1"}).then(t => t.id)`);
-    await settle();
-    check("unproxied tabs keep working", (await B(`browser.tabs.get(${d}).then(t => t.url)`)).includes("unproxied=1"));
-  } catch (e) {
-    failed++;
-    console.error("ERROR", e.message);
-  } finally {
     c.close();
   }
 }

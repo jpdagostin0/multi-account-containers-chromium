@@ -11,13 +11,11 @@ import { highlight } from "./highlight";
 import { history } from "./history";
 import { iso } from "./isolation";
 import { moveData } from "./movedata";
-import { proxy } from "./proxy";
 import { search } from "./search";
 import { theme } from "./theme";
 import { topSites } from "./topsites";
 
 globalThis.__maccIso = iso;
-globalThis.__maccProxy = proxy;
 globalThis.__maccHighlight = highlight;
 globalThis.__maccMoveData = moveData;
 globalThis.__maccHistory = history;

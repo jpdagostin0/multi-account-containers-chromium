@@ -2,65 +2,56 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// Match the extension pages to the browser's theme. The active theme comes
-// from chrome.management; its colors from the native helper, which reads the
-// theme's manifest from the profile. The palette goes to localStorage, which
-// every extension page shares and can read synchronously before it paints
-// (ts/pages/theme.ts).
+// Page colors (settings page): follow the system, light, dark, or custom
+// colors. The palette goes to localStorage, which every extension page shares
+// and reads synchronously before it paints (ts/pages/theme.ts).
 
 import { base } from "../base";
-import { askHelper } from "../native";
-import { paletteOf, type Palette, type ThemeColors } from "./palette";
+import { DARK, LIGHT, PRESETS, paletteOf, type Colors } from "./palette";
 
-export const THEME_KEY = "maccBrowserTheme";
-/** The options page's Light / Dark / Auto choice, mirrored for the pages. */
-const CHOICE_KEY = "maccThemeChoice";
+export const PALETTE_KEY = "maccPalette";
+export const COLORS_KEY = "__macc_colors";
 
-interface ThemeReply { type?: string; id?: number; theme?: { colors?: ThemeColors } | null }
+export type ColorMode = "system" | "light" | "dark" | "custom";
+export interface ColorSettings { mode: ColorMode; custom: Colors }
 
-let current: { id: string | null; palette: Palette | null } = { id: null, palette: null };
+const DEFAULTS: ColorSettings = { mode: "system", custom: PRESETS["Catppuccin Mocha"]! };
 
-function store(palette: Palette | null): void {
-  if (palette) localStorage.setItem(THEME_KEY, JSON.stringify(palette));
-  else localStorage.removeItem(THEME_KEY);
+let current: ColorSettings = DEFAULTS;
+
+function apply(s: ColorSettings): void {
+  const colors = s.mode === "light" ? LIGHT : s.mode === "dark" ? DARK : s.mode === "custom" ? s.custom : null;
+  const palette = colors ? paletteOf(colors) : null;
+  if (palette) localStorage.setItem(PALETTE_KEY, JSON.stringify(palette));
+  else localStorage.removeItem(PALETTE_KEY);
+  // The toolbar panel picks its own light/dark set from currentTheme.
+  const popup = s.mode === "light" || s.mode === "dark" ? s.mode : "auto";
+  base.storage.local.get("currentTheme").then(({ currentTheme }) => {
+    if (currentTheme !== popup) base.storage.local.set({ currentTheme: popup });
+  });
 }
 
-let retry: ReturnType<typeof setTimeout> | undefined;
-
-/** Look up the active theme; retries a few times for freshly installed ones. */
-async function refresh(attempt = 0): Promise<void> {
-  clearTimeout(retry);
-  const theme = (await base.management.getAll()).find((e) => e.type === "theme" && e.enabled);
-  if (!theme) {
-    current = { id: null, palette: null };
-    store(null);
-    return;
-  }
-  const reply = await askHelper<ThemeReply>({ type: "theme", extension: theme.id, version: theme.version });
-  const palette = paletteOf(reply?.theme?.colors);
-  current = { id: theme.id, palette };
-  store(palette);
-  // The browser writes a new unpacked theme's path to Preferences lazily.
-  if (reply && !reply.theme && attempt < 3) retry = setTimeout(() => refresh(attempt + 1), 5000 * (attempt + 1));
+function parse(stored: unknown): ColorSettings {
+  const s = (stored ?? {}) as Partial<ColorSettings>;
+  return {
+    mode: ["system", "light", "dark", "custom"].includes(s.mode as string) ? s.mode! : DEFAULTS.mode,
+    custom: { ...DEFAULTS.custom, ...(s.custom ?? {}) },
+  };
 }
 
-const onChange = (info: chrome.management.ExtensionInfo) => {
-  if (info.type === "theme" || info.id === current.id) refresh();
-};
-chrome.management.onEnabled.addListener(onChange);
-chrome.management.onDisabled.addListener(onChange);
-chrome.management.onInstalled.addListener(onChange);
-chrome.management.onUninstalled.addListener((id) => { if (id === current.id) refresh(); });
-refresh();
-
-const mirrorChoice = (choice: unknown) => localStorage.setItem(CHOICE_KEY, typeof choice === "string" ? choice : "auto");
-base.storage.local.get("currentTheme").then(({ currentTheme }) => mirrorChoice(currentTheme));
+base.storage.local.get(COLORS_KEY).then((all) => {
+  current = parse(all[COLORS_KEY]);
+  apply(current);
+});
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.currentTheme) mirrorChoice(changes.currentTheme.newValue);
+  if (area !== "local" || !changes[COLORS_KEY]) return;
+  current = parse(changes[COLORS_KEY].newValue);
+  apply(current);
 });
 
 export const theme = {
-  refresh: () => refresh(),
-  status: () => ({ ...current }),
+  get: (): ColorSettings => ({ ...current, custom: { ...current.custom } }),
+  set: (s: ColorSettings) => base.storage.local.set({ [COLORS_KEY]: parse(s) }),
+  presets: PRESETS,
 };
 export type ThemeApi = typeof theme;

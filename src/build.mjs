@@ -95,8 +95,7 @@ const bundles = [
   ["site-icon.ts", "site-icon.js", "iife"],
   ["pages/newtab/index.ts", "newtab.js", "esm"],
   ["pages/history/index.ts", "history-page.js", "esm"],
-  ["pages/options/index.ts", "options-chromium.js", "esm"],
-  ["pages/proxy-status.ts", "proxy-status.js", "esm"],
+  ["pages/settings/index.ts", "settings.js", "esm"],
   ["pages/theme.ts", "theme.js", "iife"],
 ];
 await Promise.all(bundles.map(([entry, file, format]) => esbuild.build({
@@ -150,9 +149,6 @@ for (const file of walk(out)) {
     const first = html.search(/<(script|link|style)\b/i);
     html = `${html.slice(0, first)}<script src="${rel}/theme.js"></script>\n  ${html.slice(first)}`;
   }
-  if (file === path.join(out, "options.html")) {
-    html = html.replace("</body>", `  <script type="module" src="${rel}/options-chromium.js"></script>\n  </body>`);
-  }
   fs.writeFileSync(file, html);
 }
 
@@ -160,8 +156,8 @@ for (const file of walk(out)) {
 const manifest = JSON.parse(fs.readFileSync(path.join(src, "manifest.json"), "utf8"));
 const icons = { 16: "icons/icon-16.png", 32: "icons/icon-32.png", 48: "icons/icon-48.png", 128: "icons/icon-128.png" };
 manifest.name = "Multi-Account Containers";
-// Pins the extension id (onhincpcieoahedkojoldccglpaokjln) so the proxy
-// helper's native messaging manifest can allow it.
+// Pins the extension id (onhincpcieoahedkojoldccglpaokjln), so installs keep
+// their data across reinstalls and the tab group companion can trust it.
 manifest.key = fs.readFileSync(path.join(here, "extension-key.pub"), "utf8").trim();
 // Firefox keeps containers out of private windows; Chromium can share one
 // background page with incognito, so containers work there too once the
@@ -175,9 +171,6 @@ manifest.permissions = [
   ...manifest.permissions.filter((p) => !["contextualIdentities", "idle"].includes(p)),
   "webNavigation",
   "browsingData",
-  "proxy",
-  "nativeMessaging",
-  "privacy",
   "topSites",
   "search",
 ];
@@ -190,7 +183,8 @@ manifest.browser_action = {
   default_title: "Multi-Account Containers",
   default_popup: manifest.browser_action.default_popup,
 };
-manifest.options_ui = { page: manifest.options_ui.page, open_in_tab: true };
+// Our own settings page replaces upstream's options page.
+manifest.options_ui = { page: "settings.html", open_in_tab: true };
 manifest.content_scripts = [
   {
     matches: ["<all_urls>"],
@@ -204,7 +198,6 @@ manifest.content_scripts = [
 manifest.web_accessible_resources = [
   ...manifest.web_accessible_resources.map((r) => r.replace(/^\//, "")),
   "confirm-page.html",
-  "proxy-status.html",
 ];
 // Chromium caps suggested shortcuts at four; keep the panel shortcut and
 // let users bind the rest at chrome://extensions/shortcuts.

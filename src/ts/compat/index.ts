@@ -40,9 +40,6 @@ const overrides: AnyRecord = {
   commands,
   runtime,
   webRequest,
-  // The background's Firefox proxy.onRequest hook doesn't exist here;
-  // background/proxy does per-container routing instead.
-  proxy: isBackground ? undefined : base.proxy,
 };
 
 (globalThis as unknown as { browser: Browser }).browser = new Proxy(base, {

@@ -8,7 +8,7 @@
 // ignores promises from blocking webRequest listeners).
 
 import { csidOf, idOf } from "../../lib/constants";
-import { containerOf, identityExists, mirror, navigationGuards, pendingCommit, requestOverride, status } from "./state";
+import { containerOf, identityExists, mirror, pendingCommit, requestOverride, status } from "./state";
 import { setTabN } from "./tabs";
 import { isHttp, normalizeUrl, parse } from "./urls";
 
@@ -82,11 +82,6 @@ export function onBeforeRequest(d: chrome.webRequest.OnBeforeRequestDetails): ch
   } else if (!site && current) {
     const state = mirror[`identitiesState@@_${csidOf(current)}`];
     if (state && state.isIsolated) target = 0; // locked container
-  }
-
-  for (const guard of navigationGuards) {
-    const redirectUrl = guard(d, target);
-    if (redirectUrl) return redirect(d, redirectUrl);
   }
 
   if (target !== committed) {

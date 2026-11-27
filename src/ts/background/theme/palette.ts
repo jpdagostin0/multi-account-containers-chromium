@@ -2,22 +2,30 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// A Chrome theme's colors (manifest "theme.colors", RGB arrays) turned into
-// the CSS variables the extension pages use.
+// Page colors from three base colors (settings page), as the CSS variables the
+// extension pages map under :root[data-browser-theme].
 
-export type Rgb = [number, number, number];
-export interface ThemeColors { [name: string]: number[] | undefined }
+export interface Colors { background: string; surface: string; text: string }
 export interface Palette { scheme: "light" | "dark"; vars: Record<string, string> }
 
-const rgb = (c: Rgb) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-const pick = (colors: ThemeColors, ...names: string[]): Rgb | null => {
-  for (const n of names) {
-    const c = colors[n];
-    if (Array.isArray(c) && c.length >= 3) return [c[0]!, c[1]!, c[2]!];
-  }
-  return null;
+type Rgb = [number, number, number];
+
+export const LIGHT: Colors = { background: "#f9f9fb", surface: "#ffffff", text: "#15141a" };
+export const DARK: Colors = { background: "#1c1b22", surface: "#2b2a33", text: "#fbfbfe" };
+
+/** Ready-made custom colors for the settings page. */
+export const PRESETS: Record<string, Colors> = {
+  "Catppuccin Mocha": { background: "#1e1e2e", surface: "#11111b", text: "#cdd6f4" },
+  "Catppuccin Latte": { background: "#eff1f5", surface: "#e6e9ef", text: "#4c4f69" },
+  "Nord": { background: "#2e3440", surface: "#3b4252", text: "#eceff4" },
+  "Gruvbox Dark": { background: "#282828", surface: "#3c3836", text: "#ebdbb2" },
+  "Solarized Light": { background: "#fdf6e3", surface: "#eee8d5", text: "#586e75" },
+  "Tokyo Night": { background: "#1a1b26", surface: "#16161e", text: "#c0caf5" },
 };
-const same = (a: Rgb, b: Rgb) => a.every((v, i) => v === b[i]);
+
+export const isHex = (c: unknown): c is string => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c);
+const rgbOf = (hex: string): Rgb => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as Rgb;
+const css = ([r, g, b]: Rgb) => `rgb(${r}, ${g}, ${b})`;
 
 /** Relative luminance (WCAG). */
 function luminance([r, g, b]: Rgb): number {
@@ -28,37 +36,27 @@ function luminance([r, g, b]: Rgb): number {
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 }
 
-/** null when the theme only has images (or nothing we can use). */
-export function paletteOf(colors: ThemeColors | undefined): Palette | null {
-  if (!colors) return null;
-  const toolbar = pick(colors, "toolbar", "frame");
-  const page = pick(colors, "ntp_background") ?? toolbar;
-  if (!toolbar || !page) return null;
-  const frame = pick(colors, "frame") ?? toolbar;
-  const scheme = luminance(page) < 0.25 ? "dark" : "light";
-  const fg = pick(colors, "ntp_text", "tab_text", "bookmark_text", "toolbar_button_icon")
-    ?? (scheme === "dark" ? [251, 251, 254] : [21, 20, 26]);
-  const muted = pick(colors, "tab_background_text");
-  const field = pick(colors, "omnibox_background") ?? frame;
-  const mix = (pct: number, over: string) => `color-mix(in srgb, ${rgb(fg)} ${pct}%, ${over})`;
-  // Tiles and cards: the frame color when it differs from the page, else a
-  // tint of the page.
-  const tile = same(frame, page) ? mix(6, rgb(page)) : rgb(frame);
+export function paletteOf(colors: Colors): Palette | null {
+  if (![colors.background, colors.surface, colors.text].every(isHex)) return null;
+  const page = rgbOf(colors.background);
+  const surface = rgbOf(colors.surface);
+  const fg = rgbOf(colors.text);
+  const mix = (pct: number, over: string) => `color-mix(in srgb, ${css(fg)} ${pct}%, ${over})`;
   return {
-    scheme,
+    scheme: luminance(page) < 0.25 ? "dark" : "light",
     vars: {
-      "--macc-bg": rgb(page),
-      "--macc-toolbar": rgb(toolbar),
-      "--macc-frame": rgb(frame),
-      "--macc-fg": rgb(fg),
-      "--macc-muted": muted ? rgb(muted) : mix(65, rgb(page)),
-      "--macc-tile": tile,
-      "--macc-field": rgb(field),
+      "--macc-bg": css(page),
+      "--macc-toolbar": css(page),
+      "--macc-frame": css(surface),
+      "--macc-fg": css(fg),
+      "--macc-muted": mix(65, css(page)),
+      "--macc-tile": css(surface),
+      "--macc-field": css(surface),
       "--macc-hover": mix(10, "transparent"),
       "--macc-active": mix(16, "transparent"),
-      "--macc-tile-hover": mix(10, tile),
-      "--macc-border": mix(16, rgb(page)),
-      "--macc-border-strong": mix(40, rgb(page)),
+      "--macc-tile-hover": mix(10, css(surface)),
+      "--macc-border": mix(16, css(page)),
+      "--macc-border-strong": mix(40, css(page)),
     },
   };
 }

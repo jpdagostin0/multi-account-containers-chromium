@@ -8,7 +8,6 @@
 
 import type { CompatApi } from "../compat";
 import type { IsoApi } from "../background/isolation";
-import type { ProxyApi } from "../background/proxy";
 import type { HighlightApi } from "../background/highlight";
 import type { HistoryApi } from "../background/history";
 import type { TopSitesApi } from "../background/topsites";
@@ -18,7 +17,6 @@ import type { SearchApi } from "../background/search";
 
 export interface BackgroundGlobals {
   __maccIso: IsoApi;
-  __maccProxy: ProxyApi;
   __maccHighlight: HighlightApi;
   __maccHistory: HistoryApi;
   __maccTopSites: TopSitesApi;
@@ -32,7 +30,6 @@ export type BackgroundWindow = Window & BackgroundGlobals;
 declare global {
   var __maccCompat: CompatApi;
   var __maccIso: IsoApi;
-  var __maccProxy: ProxyApi;
   var __maccHighlight: HighlightApi;
   var __maccHistory: HistoryApi;
   var __maccTopSites: TopSitesApi;

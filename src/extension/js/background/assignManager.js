@@ -190,27 +190,6 @@ window.assignManager = {
     return true;
   },
 
-  async handleProxifiedRequest(requestInfo) {
-    // The following blocks potentially dangerous requests for privacy that come without a tabId
-
-    if(requestInfo.tabId === -1) {
-      return {};
-    }
-
-    const tab = await browser.tabs.get(requestInfo.tabId);
-    const result = await proxifiedContainers.retrieve(tab.cookieStoreId);
-    if (!result || !result.proxy) {
-      return {};
-    }
-
-    // proxyDNS only works for SOCKS proxies
-    if (["socks", "socks4"].includes(result.proxy.type)) {
-      result.proxy.proxyDNS = true;
-    }
-
-    return result.proxy;
-  },
-
   // Before a request is handled by the browser we decide if we should
   // route through a different container
   async onBeforeRequest(options) {
@@ -390,21 +369,12 @@ window.assignManager = {
     return currentContainerState && currentContainerState.isIsolated;
   },
 
-  maybeAddProxyListeners() {
-    if (browser.proxy) {
-      browser.proxy.onRequest.addListener(this.handleProxifiedRequest, {urls: ["<all_urls>"]});
-    }
-  },
-
   init() {
     browser.contextMenus.onClicked.addListener((info, tab) => {
       info.bookmarkId ?
         this._onClickedBookmark(info) :
         this._onClickedHandler(info, tab);
     });
-
-    // Before anything happens we decide if the request should be proxified
-    this.maybeAddProxyListeners();
 
     // Before a request is handled by the browser we decide if we should
     // route through a different container

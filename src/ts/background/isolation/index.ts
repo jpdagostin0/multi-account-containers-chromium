@@ -35,7 +35,7 @@ import { PURGE_KEY, loadPurges, purgeStorage } from "./page-storage";
 import { restore } from "./restore";
 import { SW_KEY, loadSwOwners } from "./service-workers";
 import {
-  containerOf, hooks, identity, identityExists, identityList, listeners, mirror, navigationGuards,
+  containerOf, hooks, identity, identityExists, identityList, listeners, mirror,
   startup, status, tabs,
 } from "./state";
 import { setTabN } from "./tabs";
@@ -73,7 +73,6 @@ export const iso = {
   originOf,
   purgeCookies,
   purgeStorage,
-  navigationGuards,
   listeners,
   hooks,
   tabs,

@@ -1,0 +1,269 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* Settings page (on top of newtab.css's colors). */
+
+main.settings {
+  max-width: 720px;
+  padding: 48px 24px 64px;
+}
+
+.settings header {
+  margin-bottom: 28px;
+}
+
+.settings h1 {
+  font-size: 24px;
+  margin: 0;
+}
+
+.lead {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.card {
+  background: var(--tile);
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  padding: 20px 22px;
+}
+
+.card h2 {
+  font-size: 15px;
+  margin: 0 0 4px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 0 0 14px;
+}
+
+.row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.row + .row {
+  border-top: 1px solid var(--border);
+}
+
+.row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.row-label {
+  font-size: 13.5px;
+}
+
+.row-desc {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings select,
+.settings input[type="text"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+}
+
+.settings select:focus,
+.settings input[type="text"]:focus {
+  border-color: var(--accent, #0061e0);
+  outline: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.field span {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.field input {
+  inline-size: 100%;
+}
+
+.settings button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 14px;
+}
+
+.settings button:hover {
+  background: var(--tile-hover);
+}
+
+.settings button.primary {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.saved {
+  color: var(--muted);
+  font-size: 12.5px;
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+.saved.show {
+  opacity: 1;
+}
+
+.saved.error {
+  color: #d70022;
+  opacity: 1;
+}
+
+/* Toggle switch */
+.switch {
+  appearance: none;
+  background: color-mix(in srgb, var(--fg) 30%, transparent);
+  block-size: 20px;
+  cursor: pointer;
+  flex: none;
+  inline-size: 36px;
+  margin: 0;
+  position: relative;
+  transition: background-color 150ms;
+}
+
+.switch::after {
+  background: var(--bg);
+  block-size: 14px;
+  content: "";
+  inline-size: 14px;
+  inset-block-start: 3px;
+  inset-inline-start: 3px;
+  position: absolute;
+  transition: transform 150ms;
+}
+
+.switch:checked {
+  background: var(--fg);
+}
+
+.switch:checked::after {
+  transform: translateX(16px);
+}
+
+/* Segmented choice (color mode) */
+.segmented {
+  border: 1px solid var(--border);
+  display: inline-flex;
+  margin-bottom: 16px;
+}
+
+.segmented button {
+  border: 0;
+  border-inline-end: 1px solid var(--border);
+}
+
+.segmented button:last-child {
+  border-inline-end: 0;
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.colors {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 12px 0;
+}
+
+.color {
+  align-items: center;
+  border: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.color input[type="color"] {
+  background: none;
+  block-size: 28px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  inline-size: 36px;
+  padding: 0;
+}
+
+.color code {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.preview {
+  background: var(--p-bg);
+  border: 1px solid var(--border);
+  color: var(--p-fg);
+  display: flex;
+  gap: 10px;
+  padding: 14px;
+}
+
+.preview span {
+  background: var(--p-surface);
+  font-size: 12.5px;
+  padding: 8px 12px;
+}
+
+.shortcuts {
+  display: grid;
+  gap: 8px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shortcuts label {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.shortcuts select {
+  inline-size: 60%;
+}
+
+@media (max-width: 560px) {
+  .colors,
+  .shortcuts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

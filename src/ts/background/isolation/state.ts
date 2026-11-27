@@ -6,7 +6,6 @@
 
 import { IDENT_KEY, SEED, type IdentityRec, type IdentityState } from "../../lib/constants";
 
-export type NavigationGuard = (d: chrome.webRequest.OnBeforeRequestDetails, target: number) => string | null;
 export type ContainerListener = (tabId: number, n: number | null, before: number) => void;
 
 /** tabId -> container number (absent = default) */
@@ -21,8 +20,6 @@ export const mirror: Record<string, any> = {};
 export const recentReloads = new Map<number, number>();
 /** tab ids that existed when the extension started (session restore) */
 export const startup = { tabs: new Set<number>(), at: Date.now() };
-/** hooks other modules (proxy) use to veto navigations */
-export const navigationGuards: NavigationGuard[] = [];
 export const listeners = { tabContainerChanged: [] as ContainerListener[] };
 /** set by other modules */
 export const hooks = { borderColorForTab: (_tabId: number): string | null => null };

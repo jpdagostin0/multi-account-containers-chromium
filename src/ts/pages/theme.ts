@@ -2,21 +2,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// First script in every extension page's <head>: applies the browser theme
-// palette the background page left in localStorage (background/theme), so
-// pages paint in the theme's colors from the start. Stylesheets map the
-// --macc-* variables under :root[data-browser-theme]. An explicit light or
-// dark choice in the options page (mirrored by background/theme) turns this
-// off.
+// First script in every extension page's <head>: applies the color palette
+// from the settings page, which the background page leaves in localStorage
+// (background/theme), so pages paint in those colors from the start.
+// Stylesheets map the --macc-* variables under :root[data-browser-theme].
+// Without a palette ("follow the system"), pages use their own light/dark
+// colors.
 
-const KEY = "maccBrowserTheme";
-const CHOICE = "maccThemeChoice";
+const KEY = "maccPalette";
 
 interface Palette { scheme: "light" | "dark"; vars: Record<string, string> }
 
 function palette(): Palette | null {
   try {
-    if (["light", "dark"].includes(localStorage.getItem(CHOICE) ?? "")) return null;
     return JSON.parse(localStorage.getItem(KEY) || "null") as Palette | null;
   } catch {
     return null;
@@ -46,4 +44,4 @@ function apply(): void {
 }
 
 apply();
-addEventListener("storage", (e) => { if (e.key === KEY || e.key === CHOICE || e.key === null) apply(); });
+addEventListener("storage", (e) => { if (e.key === KEY || e.key === null) apply(); });

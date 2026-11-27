@@ -29,7 +29,6 @@ const P_CONTAINER_DELETE = "containerDelete";
 const P_CONTAINER_ASSIGNMENTS = "containerAssignments";
 const P_CLEAR_CONTAINER_STORAGE = "clearContainerStorage";
 
-const P_ADVANCED_PROXY_SETTINGS = "advanced-proxy-settings-panel";
 
 function addRemoveSiteIsolation() {
   const identity = Logic.currentIdentity();
@@ -1309,11 +1308,6 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
   async initialize() {
     this._radioButtonsInitialized = this.initializeRadioButtons();
 
-    const advancedProxySettingsButton = document.querySelector(".advanced-proxy-settings-btn");
-    Utils.addEnterHandler(advancedProxySettingsButton, () => {
-      Logic.showPanel(P_ADVANCED_PROXY_SETTINGS, this.getEditInProgressIdentity(), false, false);
-    });
-
     Utils.addEnterHandler(document.querySelector("#close-container-edit-panel"), () => {
       // Resets listener from siteIsolation checkbox to keep the update queue to 0.
       const siteIsolation = document.querySelector("#site-isolation");
@@ -1363,7 +1357,7 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
 
   // This prevents identity edits (change of icon, color, etc)
   // from getting lost when navigating to and from one
-  // of the edit sub-pages (advanced proxy settings, for instance).
+  // of the edit sub-pages (the site list, for instance).
   getEditInProgressIdentity() {
     const formValues = new FormData(this._editForm);
     const editedIdentity = Logic.currentIdentity();
@@ -1422,7 +1416,6 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     document.querySelector("#edit-container-panel .panel-footer").hidden = !!userContextId;
     document.querySelector("#edit-container-panel .delete-container").hidden = !userContextId;
     document.querySelector("#edit-container-options").hidden = !userContextId;
-    document.querySelector("#advanced-proxy-settings-btn").hidden = !userContextId;
 
     Utils.addEnterHandler(document.querySelector("#manage-assigned-sites-list"), () => {
       Logic.showPanel(P_CONTAINER_ASSIGNMENTS, this.getEditInProgressIdentity(), false, false);
@@ -1451,171 +1444,7 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     Utils.addEnterHandler(deleteButton, () => {
       Logic.showPanel(P_CONTAINER_DELETE, this.getEditInProgressIdentity(), false, false);
     });
-    // The container's proxy, under the "Advanced proxy settings" label.
-    const proxyAddress = document.getElementById("advanced-proxy-address");
-    proxyAddress.textContent = "";
-    if (!userContextId) {
-      return;
-    }
-    const proxyData = await proxifiedContainers.retrieve(identity.cookieStoreId);
-    const proxy = proxyData && proxyData.proxy;
-    if (proxy && proxy.type) {
-      proxyAddress.textContent = `${proxy.type}://${proxy.host}:${proxy.port}`;
-    }
   },
-});
-
-Logic.registerPanel(P_ADVANCED_PROXY_SETTINGS, {
-  panelSelector: "#advanced-proxy-settings-panel",
-
-  async initialize() {
-    this._proxyForm = document.querySelector(".advanced-proxy-panel-content");
-    this._advancedProxyInput = this._proxyForm.querySelector("#edit-advanced-proxy-input");
-    const clearAdvancedProxyInput = this._proxyForm.querySelector("#clear-advanced-proxy-input");
-    this._submitadvancedProxy = this._proxyForm.querySelector("#submit-advanced-proxy");
-
-    this._advancedProxyInput.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter") {
-        this.hideInvalidEntryWarning();
-      }
-    });
-
-    this._submitadvancedProxy.addEventListener("click", (e) => {
-      e.preventDefault();
-      this.submitProxyForm();
-    });
-
-    clearAdvancedProxyInput.addEventListener("click", (e) => {
-      e.preventDefault();
-
-      const activeEl = document.activeElement;
-      if (activeEl === this._advancedProxyInput) {
-        return this.submitProxyForm();
-      }
-      if (activeEl !== clearAdvancedProxyInput) {
-        return;
-      }
-      this.hideInvalidEntryWarning();
-      this._advancedProxyInput.value = "";
-      this._advancedProxyInput.focus();
-    });
-
-    this._advancedProxyInput.addEventListener("blur", () => {
-      if (this._advancedProxyInput.value.length === 0) {
-        return;
-      }
-      if(!proxifiedContainers.parseProxy(this._advancedProxyInput.value)) {
-        this.showInvalidEntryWarning();
-      }
-    });
-
-    this._advancedProxyInput.addEventListener("focus", () => {
-      this.hideInvalidEntryWarning();
-    });
-
-    const returnButton = document.getElementById("advanced-proxy-settings-return");
-    Utils.addEnterHandler(returnButton, () => {
-      return Logic.showPanel(P_CONTAINER_EDIT, Logic.currentIdentity(), false, false);
-    });
-
-    const learnMoreButton = document.getElementById("advanced-proxy-settings-learn-more");
-    Utils.addEnterHandler(learnMoreButton, () => {
-      browser.tabs.create({ url: "https://github.com/jpdagostin0/multi-account-containers-chromium#per-container-proxies" });
-    });
-  },
-
-  showInvalidEntryWarning() {
-    this._proxyForm.classList.add("invalid");
-  },
-
-  hideInvalidEntryWarning() {
-    this._proxyForm.classList.remove("invalid");
-  },
-
-  async submitProxyForm() {
-    const parsedProxy = proxifiedContainers.parseProxy(this._advancedProxyInput.value);
-    if (this._advancedProxyInput.value.length > 0 && !parsedProxy) {
-      this.showInvalidEntryWarning();
-      return;
-    }
-    const identity = Logic.currentIdentity();
-    proxifiedContainers.set(identity.cookieStoreId, parsedProxy);
-
-    Logic.showPanel(P_CONTAINER_EDIT, Logic.currentIdentity(), false, false);
-  },
-
-  async prepare() {
-    const identity = Logic.currentIdentity();
-    const advancedProxyInput = document.getElementById("edit-advanced-proxy-input");
-
-    const proxyPermissionEnabled = await browser.permissions.contains({ permissions: ["proxy"] });
-    if (!proxyPermissionEnabled) {
-
-      // Restrict tabbing inside advanced proxy panel to proxy permissions ui
-      const panel = document.getElementById("advanced-proxy-settings-panel");
-      const clickableEls = panel.querySelectorAll("button, a, input");
-      clickableEls.forEach(el => {
-        if (!el.dataset.tabGroup && el.id !== "advanced-proxy-settings-return") {
-          el.setAttribute("tabindex", "-1");
-          el.disabled = true;
-        }
-      });
-
-      // Show proxy permission overlay
-      const permissionsOverlay = document.getElementById("permissions-overlay");
-      permissionsOverlay.style.display = "flex";
-
-      // Add "enable" button handling
-      const enableProxyPermissionsButton = document.getElementById("enable-proxy-permissions");
-
-      enableProxyPermissionsButton.addEventListener("click", async() => {
-        const granted = await browser.permissions.request({ permissions: ["proxy"] });
-        if (granted) {
-          permissionsOverlay.style.display = "none";
-          // restore normal panel tabbing
-          clickableEls.forEach(el => {
-            el.tabindex = "0";
-            el.disabled = false;
-          });
-        }
-      });
-    }
-
-
-    // reset input
-    const resetProxyInput = () => {
-      if (!advancedProxyInput) {
-        return;
-      }
-      advancedProxyInput.value = "";
-    };
-
-    resetProxyInput();
-
-    this.hideInvalidEntryWarning();
-
-    const setProxyInputPlaceholder = (proxy) => {
-      this._advancedProxyInput.value =  `${proxy.type}://${proxy.host}:${proxy.port}`;
-    };
-
-    const edit_proxy_dom = function(proxy) {
-      if (!proxy.type) {
-        resetProxyInput();
-        return;
-      }
-      return setProxyInputPlaceholder(proxy);
-    };
-
-    const proxyData = await proxifiedContainers.retrieve(identity.cookieStoreId);
-    if (proxyData) {
-      edit_proxy_dom(proxyData.proxy);
-    } else {
-      resetProxyInput();
-    }
-    const containerColor = document.querySelector(".proxy-title-container-color");
-    containerColor.dataset.identityColor = identity.color;
-    return Promise.resolve(null);
-  }
 });
 
 Logic.registerPanel(P_CLEAR_CONTAINER_STORAGE, {
