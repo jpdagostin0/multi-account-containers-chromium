@@ -2,10 +2,11 @@
 
 A port of Mozilla's [Firefox Multi-Account Containers][upstream] to
 Chromium browsers that still run Manifest V2 extensions, such as
-[Helium](https://helium.computer). The upstream add-on is unchanged: the
-same popup, options page, site assignments, locked containers, sync,
-keyboard shortcuts and per-container proxies. A compatibility layer in
-[`chrome/`](chrome) emulates what Chromium lacks.
+[Helium](https://helium.computer). It keeps upstream's popup, options page,
+site assignments, locked containers, sync, keyboard shortcuts and
+per-container proxies. The extension files derived from upstream live in
+[`src/extension/`](src/extension), and a TypeScript compatibility layer in
+[`src/ts/`](src/ts) emulates what Chromium lacks.
 
 Chromium has no `contextualIdentities` API, only one cookie jar per profile,
 and no per-request proxy hook. The port emulates them:
@@ -60,7 +61,7 @@ extension's options:
 - **Tab groups** (off by default). Each container's tabs go into one tab group
   per window, named and colored after the container. Only Manifest V3
   extensions may color tab groups, so this needs the tiny companion extension
-  in [`chrome/tabgroups-companion`](chrome/tabgroups-companion), loaded
+  in [`src/tabgroups-companion`](src/tabgroups-companion), loaded
   unpacked as well.
 - **Toolbar badge** (always on). The badge shows the container's initial, in
   its color.
@@ -133,7 +134,7 @@ program that the browser starts on demand through native messaging. Install
 it once:
 
 ```sh
-cd chrome/helper && ./install.sh     # needs Go; or use the release tarball
+cd src/helper && ./install.sh     # needs Go; or use the release tarball
 ```
 
 While any container has a proxy, the extension points the browser at the
@@ -163,12 +164,12 @@ The options page shows the helper's status.
 
 ```sh
 git clone --recursive https://github.com/jpdagostin0/multi-account-containers-chromium
-cd multi-account-containers-chromium/chrome
+cd multi-account-containers-chromium/src
 npm install           # webextension-polyfill, tldts
 node build.mjs --zip  # -> dist/chromium/, dist/chromium-tabgroups/, dist/*.zip
 ```
 
-`build.mjs` copies `src/` as-is, injects the compat layer into every page,
+`build.mjs` copies `extension/`, bundles `ts/` with esbuild, injects the compat layer into every page,
 adds the isolation and proxy modules to the background page, rewrites the
 manifest for Chromium, and fixes up locale files that Firefox accepts but
 Chromium refuses to load.
@@ -176,7 +177,7 @@ Chromium refuses to load.
 ### Tests
 
 ```sh
-node chrome/test/e2e.mjs      # BROWSER=chromium for another browser
+node src/test/e2e.mjs      # BROWSER=chromium for another browser
 ```
 
 This starts test servers, two upstream proxies and the helper, then drives a
@@ -203,44 +204,8 @@ These come from Chromium itself. An extension can't change them:
 
 ## Upstream
 
-`src/` tracks [mozilla/multi-account-containers][upstream]. To update, merge
-upstream and rebuild. The port only adds files under `chrome/`. MPL-2.0, same
-as upstream.
+Derived from [mozilla/multi-account-containers][upstream] 8.4.1; the
+Firefox-only tooling, tests and branding were dropped, and upstream changes
+are now merged by hand into `src/extension/`. MPL-2.0, same as upstream.
 
 [upstream]: https://github.com/mozilla/multi-account-containers
-
----
-
-# Multi-Account Containers (upstream README)
-
-[![Test](https://github.com/mozilla/multi-account-containers/actions/workflows/test.yaml/badge.svg)](https://github.com/mozilla/multi-account-containers/actions/workflows/test.yaml)
-
-The Firefox Multi-Account Containers extension lets you carve out a separate box for each of your online lives – no more opening a different browser just to check your work email!
-
-Learn more about Multi-Account Containers in
-[our end-user documentation][enduser].
-
-## Contributing
-
-Everyone is welcome to contribute to Multi-Account Containers. To learn how
-to contribute a patch to Multi-Account Container, please
-[read our contributing guide][contributing].
-
-You can also chat with us on [our Matrix room][matrix] or ask in [our discussions board][discussions].
-
-This repository is governed by Mozilla's code of conduct and etiquette
-guidelines. For more details, [please read the Mozilla Community Participation Guidelines][cpg].
-
-### License
-
-This Source Code Form is subject to the terms of the Mozilla Public
-License, v. 2.0. If a copy of the MPL was not distributed with this
-file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-<!-- Please keep the list in alphabetical order -->
-[contributing]: CONTRIBUTING.md
-[cpg]: https://www.mozilla.org/about/governance/policies/participation/
-[enduser]: https://support.mozilla.org/en-US/kb/containers
-[forum]: https://discourse.mozilla.org/c/containers/223
-[discussions]: https://github.com/mozilla/multi-account-containers/discussions
-[matrix]: https://matrix.to/#/#containers:mozilla.org
