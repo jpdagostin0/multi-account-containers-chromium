@@ -35,7 +35,7 @@
     icon.className = "ident-icon";
     if (c && c.color) b.style.setProperty("--c", c.color);
     if (c && c.icon) icon.style.setProperty("--icon", `url("${c.icon}")`);
-    if (n === null) icon.style.visibility = "hidden";
+    if (n === null) icon.style.setProperty("--icon", 'url("/img/multiaccountcontainer-16.svg")');
     b.append(icon, name);
     b.addEventListener("click", () => {
       filter = n;
