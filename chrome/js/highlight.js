@@ -10,8 +10,8 @@
 //                label and the line under the tabs). chrome.tabGroups is
 //                MV3-only, so the tab-group companion extension applies the
 //                color and title.
-//   favicon dot  (default) the tab's favicon is redrawn with a dot in the
-//                container's color, so it shows in horizontal and vertical
+//   icon line    (default) the tab's favicon is redrawn with a line in the
+//                container's color down its left edge, so it shows in horizontal and vertical
 //                tab strips alike. The page asks for the marked icon
 //                (content-isolation.js); we fetch and composite it here.
 //   page border  an optional colored frame around the page itself, drawn by
@@ -220,25 +220,17 @@
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = S;
     const ctx = canvas.getContext("2d");
+    // A line in the container's color down the left edge (2 CSS px at the
+    // usual 16px tab icon size), with the site's icon shrunk beside it.
+    const BAR = 4;
+    const GAP = 2;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, BAR, S, BAR / 2);
+    ctx.fill();
     if (img) {
-      ctx.drawImage(img, 0, 0, S, S);
-      // Dot in the bottom-right corner, ringed so it reads on any icon/theme.
-      ctx.beginPath();
-      ctx.arc(S - 8, S - 8, 7.5, 0, 2 * Math.PI);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#fff";
-      ctx.stroke();
-    } else {
-      // No usable favicon: a plain colored disc.
-      ctx.beginPath();
-      ctx.arc(S / 2, S / 2, S / 2 - 3, 0, 2 * Math.PI);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#fff";
-      ctx.stroke();
+      const size = S - BAR - GAP;
+      ctx.drawImage(img, BAR + GAP, (S - size) / 2, size, size);
     }
     const url = canvas.toDataURL("image/png");
     if (iconCache.size > 300) iconCache.delete(iconCache.keys().next().value);
@@ -257,10 +249,10 @@
     return true;
   });
 
+  // Inject (or re-inject) js/chrome/favicon.js: tabs opened before the
+  // extension (re)started don't have the content script yet.
   function refreshFavicon(tabId) {
-    chrome.tabs.executeScript(tabId, {
-      code: "window.__maccRefreshFavicon && window.__maccRefreshFavicon()",
-    }, lastError);
+    chrome.tabs.executeScript(tabId, { file: "js/chrome/favicon.js" }, lastError);
   }
 
   // -------------------------------------------------------------------------

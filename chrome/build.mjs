@@ -146,7 +146,7 @@ manifest.options_ui = { page: manifest.options_ui.page, open_in_tab: true };
 manifest.content_scripts = [
   {
     matches: ["<all_urls>"],
-    js: ["js/chrome/purge.js", "js/chrome/content-isolation.js"],
+    js: ["js/chrome/purge.js", "js/chrome/content-isolation.js", "js/chrome/favicon.js"],
     run_at: "document_start",
     all_frames: true,
     match_about_blank: true,

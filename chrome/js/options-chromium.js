@@ -26,8 +26,8 @@
     const label = el("label", {}, input, el("span", { className: "bold", textContent: ` ${title}` }));
     return { input, node: el("div", { className: "settings-group" }, label, el("p", {}, el("em", { textContent: description }))) };
   }
-  const faviconToggle = toggle("faviconMarker", "Color dot on tab icons",
-    "Mark the favicon of container tabs with a dot in the container's color. Works in horizontal and vertical tabs.");
+  const faviconToggle = toggle("faviconMarker", "Colored line on tab icons",
+    "Draw a line in the container's color down the left edge of container tabs' icons. Works in horizontal and vertical tabs.");
   const groupsToggle = toggle("tabGroups", "Group container tabs",
     "Put each container's tabs in a tab group named and colored after the container (needs the tab group companion).");
   const borderToggle = toggle("pageBorder", "Colored page border",

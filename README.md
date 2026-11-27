@@ -20,7 +20,7 @@ and no per-request proxy hook. The port emulates them:
 | per-container service workers | the first container to use an origin owns its workers, and their traffic is attributed to that container. If a second container uses the origin, the workers are removed and registration is disabled there. |
 | per-container proxies (`proxy.onRequest`) | a small local helper does the routing, see below |
 | "Always open in" (reopens in a new tab) | the tab switches container in place when the navigation commits; the confirm page is still shown unless "remember my decision" was ticked |
-| colored tab line | a dot in the container's color on the tab's favicon, plus an optional page border, optional tab groups and a toolbar badge (see [Highlighting](#highlighting)) |
+| colored tab line | a line in the container's color on the left of the tab's icon, plus an optional page border, optional tab groups and a toolbar badge (see [Highlighting](#highlighting)) |
 
 Pages learn their container synchronously from a `Server-Timing` response
 header that the extension adds to every document, so the shim is in place
@@ -50,11 +50,11 @@ Firefox draws a colored line on container tabs. Chromium doesn't let
 extensions style tabs, so the port offers these instead, all switchable in the
 extension's options:
 
-- **Favicon dot** (on by default). The favicon of each container tab is
-  redrawn with a dot in the container's color. It shows anywhere the browser
+- **Icon line** (on by default). The favicon of each container tab is
+  redrawn with a line about 2px wide in the container's color down its left
+  edge, with the site's icon beside it. It shows anywhere the browser
   draws the tab icon, horizontal or vertical tabs alike. If the page changes
-  its own icon, the new one gets marked too. Pages without a usable icon get a
-  plain colored disc.
+  its own icon, the new one gets marked too. Pages without a usable icon get just the line.
 - **Page border** (off by default). A thin frame in the container's color is
   drawn around container pages.
 - **Tab groups** (off by default). Each container's tabs go into one tab group
