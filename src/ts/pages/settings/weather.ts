@@ -109,6 +109,6 @@ export function weatherSection(weather: WeatherApi): HTMLElement {
       el("span", { className: "setting-text" }, el("span", { className: "setting-label", textContent: "Effects" }), el("span", { className: "setting-desc", textContent: "Pixel art weather behind the new tab page." })),
       effects),
     el("p", { className: "actions" }, note.node));
-  section.id = "weather";
+  section.id = "weather-settings";
   return section;
 }

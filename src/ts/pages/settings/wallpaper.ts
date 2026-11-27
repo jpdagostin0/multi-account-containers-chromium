@@ -73,27 +73,34 @@ export function wallpaperSection(wallpaper: WallpaperApi): HTMLElement {
   const image = el("div", { className: "wallpaper-image" }, preview,
     el("div", { className: "wallpaper-source" }, el("p", { className: "actions" }, pick, file), el("div", { className: "place-search" }, url, useUrl)));
 
-  const dim = el("input", { type: "range", min: "0", max: "80", step: "5" });
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  dim.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => save({ dim: Number(dim.value) / 100 }), 120); });
-  dim.addEventListener("change", () => { clearTimeout(timer); save({ dim: Number(dim.value) / 100 }); });
-  const dimRow = el("label", { className: "setting stacked" },
-    el("span", { className: "setting-text" }, el("span", { className: "setting-label", textContent: "Dim" }), el("span", { className: "setting-desc", textContent: "Darken the background so the page reads well over it." })),
-    dim);
+  /** A labelled slider, saved as you drag. */
+  function slider(label: string, desc: string, max: number, step: number, patch: (v: number) => Partial<Wallpaper>) {
+    const input = el("input", { type: "range", min: "0", max: String(max), step: String(step) });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => save(patch(Number(input.value))), 120); });
+    input.addEventListener("change", () => { clearTimeout(timer); save(patch(Number(input.value))); });
+    const node = el("label", { className: "setting stacked" },
+      el("span", { className: "setting-text" }, el("span", { className: "setting-label", textContent: label }), el("span", { className: "setting-desc", textContent: desc })),
+      input);
+    return { node, input };
+  }
+  const dim = slider("Dim", "Darken the background so the page reads well over it.", 80, 5, (v) => ({ dim: v / 100 }));
+  const blur = slider("Blur", "Soften the background.", 40, 1, (v) => ({ blur: v }));
 
   function render(): void {
     if (!w) return;
     for (const [kind, b] of kindButtons) b.setAttribute("aria-pressed", String(w.kind === kind));
     image.hidden = w.kind !== "image";
-    dimRow.hidden = w.kind === "none";
+    dim.node.hidden = blur.node.hidden = w.kind === "none";
     preview.style.backgroundImage = w.image ? `url(${JSON.stringify(w.image)})` : "";
     preview.classList.toggle("empty", !w.image);
     if (w.image && !w.image.startsWith("data:")) url.value = w.image;
-    dim.value = String(Math.round(w.dim * 100));
+    dim.input.value = String(Math.round(w.dim * 100));
+    blur.input.value = String(w.blur);
   }
   wallpaper.get().then((v) => { w = v; render(); });
 
   return card("Wallpaper",
     "Behind the new tab page. The pixel sky follows the weather and the time of day; weather effects play over images too.",
-    kinds, image, dimRow, el("p", { className: "actions" }, note.node));
+    kinds, image, dim.node, blur.node, el("p", { className: "actions" }, note.node));
 }

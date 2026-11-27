@@ -4,17 +4,18 @@
 
 // The new tab page's background (settings page): the theme's color, a pixel
 // art sky that follows the weather and the time of day, or an image (a file
-// the user picked, kept as a data URL, or a web address). Dim darkens it so
-// the page stays readable.
+// the user picked, kept as a data URL, or a web address). Dim darkens it and
+// blur softens it, so the page stays readable.
 
 import { base } from "./base";
 
 export const WALLPAPER_KEY = "__macc_wallpaper";
 
 export type WallpaperKind = "none" | "sky" | "image";
-export interface Wallpaper { kind: WallpaperKind; image: string; dim: number }
+/** blur: in CSS pixels. */
+export interface Wallpaper { kind: WallpaperKind; image: string; dim: number; blur: number }
 
-const DEFAULTS: Wallpaper = { kind: "sky", image: "", dim: 0 };
+const DEFAULTS: Wallpaper = { kind: "sky", image: "", dim: 0, blur: 0 };
 
 const validImage = (s: string) => /^data:image\//.test(s) || /^https?:\/\//.test(s);
 
@@ -24,6 +25,7 @@ function parse(stored: unknown): Wallpaper {
     kind: w.kind === "none" || w.kind === "sky" || w.kind === "image" ? w.kind : DEFAULTS.kind,
     image: typeof w.image === "string" && validImage(w.image) ? w.image : "",
     dim: Number.isFinite(w.dim) ? Math.min(0.8, Math.max(0, w.dim!)) : DEFAULTS.dim,
+    blur: Number.isFinite(w.blur) ? Math.min(40, Math.max(0, w.blur!)) : DEFAULTS.blur,
   };
 }
 

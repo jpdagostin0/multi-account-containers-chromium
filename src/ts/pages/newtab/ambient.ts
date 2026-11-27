@@ -37,7 +37,10 @@ export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi): void
     renderWeather(s, w, failed);
     image.hidden = wp.kind !== "image" || !wp.image;
     image.style.backgroundImage = image.hidden ? "" : `url(${JSON.stringify(wp.image)})`;
-    dim.style.opacity = String(wp.kind === "none" ? 0 : wp.dim);
+    // A backdrop filter over the wallpaper and the scene blurs both (mirrored at the edges, so they stay full).
+    const on = wp.kind !== "none";
+    dim.style.backgroundColor = `rgb(0 0 0 / ${on ? wp.dim : 0})`;
+    dim.style.backdropFilter = on && wp.blur ? `blur(${wp.blur}px)` : "";
     root.classList.toggle("has-wallpaper", wp.kind !== "none");
     const spec = sceneSpec(wp, s, w);
     if (JSON.stringify(spec) !== JSON.stringify(scene.spec)) scene.set(spec);
@@ -48,7 +51,7 @@ export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi): void
   document.getElementById("weather")!.addEventListener("click", () => {
     const drawer = document.getElementById("settings-drawer")!;
     if (!root.classList.contains("settings-open")) document.getElementById("settings-toggle")!.click();
-    drawer.querySelector("#weather")?.scrollIntoView({ block: "start" });
+    drawer.querySelector("#weather-settings")?.scrollIntoView({ block: "start" });
   });
 
   update();

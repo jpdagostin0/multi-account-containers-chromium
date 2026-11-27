@@ -552,17 +552,17 @@ async function session(c, { withErrors = true } = {}) {
     await c.send("Emulation.setGeolocationOverride", { latitude: 40.75, longitude: -73.5, accuracy: 10 }, opt);
     // Hidden pages get no positions.
     await P(opt, `new Promise(r => chrome.tabs.getCurrent(t => chrome.tabs.update(t.id, { active: true }, r))).then(() => 0)`);
-    await P(opt, `[...document.querySelectorAll("#weather button")].find(b => b.textContent === "Use my location").click()`);
+    await P(opt, `[...document.querySelectorAll("#weather-settings button")].find(b => b.textContent === "Use my location").click()`);
     let geo = null;
     for (let i = 0; i < 50 && !geo; i++) { await sleep(100); geo = await B(`__maccWeather.settings().then(s => s.place)`); }
     check("Use my location saves the browser's position", geo && geo.name === "My location" && geo.latitude === 40.75 && geo.longitude === -73.5,
-      [geo, await P(opt, `[document.querySelector("#weather .saved").textContent, [...document.querySelectorAll("#weather button")].map(b => b.textContent).join("|")]`)]);
-    await P(opt, `(() => { const q = document.querySelector("#weather .place-search input"); q.value = "12345"; q.nextElementSibling.click(); })()`);
+      [geo, await P(opt, `[document.querySelector("#weather-settings .saved").textContent, [...document.querySelectorAll("#weather-settings button")].map(b => b.textContent).join("|")]`)]);
+    await P(opt, `(() => { const q = document.querySelector("#weather-settings .place-search input"); q.value = "12345"; q.nextElementSibling.click(); })()`);
     await sleep(600);
-    const found = await P(opt, `[...document.querySelectorAll("#weather .places button")].map(b => b.textContent)`);
+    const found = await P(opt, `[...document.querySelectorAll("#weather-settings .places button")].map(b => b.textContent)`);
     check("place search by postal code lists Open-Meteo's matches", found.length === 1 && found[0] === "TestvilleTest State, Testland", found);
     check("geocoding asks Open-Meteo for the postal code", meteo.some((u) => u.startsWith("https://geocoding-api.open-meteo.com/v1/search?name=12345")), meteo);
-    await P(opt, `document.querySelector("#weather .places button").click()`);
+    await P(opt, `document.querySelector("#weather-settings .places button").click()`);
     await sleep(400);
     const placed = await B(`__maccWeather.settings().then(s => [s.place.name, s.place.latitude, s.place.longitude])`);
     check("picking a match saves it as the weather's place", JSON.stringify(placed) === JSON.stringify(["Testville", 10.5, 20.25]), placed);
@@ -586,12 +586,12 @@ async function session(c, { withErrors = true } = {}) {
     check("text over the wallpaper gets a backing", (await P(wNtp, `getComputedStyle(document.querySelector("#history-toggle")).backgroundColor`)) !== "rgba(0, 0, 0, 0)");
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-weather-rain.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
-    await P(opt, `(() => { const s = [...document.querySelectorAll("#weather select")][0]; s.value = "snow"; s.dispatchEvent(new Event("change")); })()`);
+    await P(opt, `(() => { const s = [...document.querySelectorAll("#weather-settings select")][0]; s.value = "snow"; s.dispatchEvent(new Event("change")); })()`);
     await sleep(800);
     check("picking an effect in settings changes open new tabs", (await P(wNtp, `document.documentElement.dataset.effect`)) === "snow");
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-weather-snow.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
-    await P(opt, `[...document.querySelectorAll("#weather .segmented button")].find(b => b.textContent === "°F").click()`);
+    await P(opt, `[...document.querySelectorAll("#weather-settings .segmented button")].find(b => b.textContent === "°F").click()`);
     await sleep(800);
     check("units: °F asks Open-Meteo in fahrenheit", meteo.some((u) => u.includes("forecast") && u.includes("temperature_unit=fahrenheit")) && (await P(wNtp, `document.querySelector(".w-temp").textContent`)) === "12°");
     // An image wallpaper: the scene turns transparent over it.
@@ -601,9 +601,17 @@ async function session(c, { withErrors = true } = {}) {
     const s3 = await sceneLook(wNtp);
     check("image wallpaper covers the page", !img[0] && img[1].includes("wallpaper=1") && img[2] === "cover", img);
     check("weather plays over the image (transparent scene)", !s3.hidden && s3.opaque < 0.5, s3.opaque);
-    await B(`__maccWallpaper.set({ dim: 0.4 })`);
+    await B(`__maccWallpaper.set({ dim: 0.4, blur: 12 })`);
     await sleep(400);
-    check("dim darkens the wallpaper", (await P(wNtp, `getComputedStyle(document.getElementById("wallpaper-dim")).opacity`)) === "0.4");
+    const veil = await P(wNtp, `(() => { const s = getComputedStyle(document.getElementById("wallpaper-dim")); return [s.backgroundColor, s.backdropFilter]; })()`);
+    check("dim darkens and blur softens the wallpaper", veil[0] === "rgba(0, 0, 0, 0.4)" && veil[1] === "blur(12px)", veil);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-wallpaper-blur.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
+    const drawerCards = await P(wNtp, `(() => { document.getElementById("settings-toggle").click();
+      return new Promise(r => setTimeout(() => r(["Weather", "Wallpaper"].map(t => { const h = [...document.querySelectorAll("#settings-drawer .card h2")].find(h => h.textContent === t);
+        return h ? [getComputedStyle(h.closest(".card")).opacity, h.closest(".card").getBoundingClientRect().height > 100] : null; })), 700)); })()`);
+    check("Weather and Wallpaper cards show in the settings drawer", JSON.stringify(drawerCards) === JSON.stringify([["1", true], ["1", true]]), drawerCards);
+    await P(wNtp, `document.querySelector("#settings-drawer .close").click()`);
     await B(`__maccWallpaper.set({ kind: "none" }).then(() => __maccWeather.set({ effects: "off", show: false }))`);
     await sleep(500);
     const plain = await P(wNtp, `[document.getElementById("scene").hidden, document.getElementById("wallpaper").hidden, document.getElementById("weather").hidden, document.documentElement.classList.contains("has-wallpaper")]`);
