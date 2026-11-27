@@ -344,6 +344,20 @@ async function session(c, { withErrors = true } = {}) {
     check("history search", (await hq({ n: 2, text: "csp" })).every(([, u]) => u.includes("csp")) && (await hq({ n: 2, text: "csp" })).length > 0);
     const icon = await B(`__maccHistory.iconsFor(["${ORIGIN}"]).then(x => x["${ORIGIN}"] || null)`);
     check("favicon saved for the site", typeof icon === "string" && icon.startsWith("data:image/png"));
+    const iconRec = () => B(`new Promise(r => { const o = indexedDB.open("macc-history"); o.onsuccess = () => {
+      const q = o.result.transaction("icons").objectStore("icons").get("${ORIGIN}"); q.onsuccess = () => r(q.result && {hash: q.result.hash, updated: q.result.updated}); }; })`);
+    const rec1 = await iconRec();
+    check("saved icon has a content hash", !!rec1 && /^[0-9a-f]{64}$/.test(rec1.hash), rec1);
+    await B(`browser.tabs.reload(${spaTab})`);
+    await settle(800);
+    const rec2 = await iconRec();
+    check("revisiting with the same icon doesn't rewrite it", rec2.hash === rec1.hash && rec2.updated === rec1.updated, [rec1, rec2]);
+    execFileSync("curl", ["-s", `${ORIGIN}/seticon?c=red`]);
+    await B(`browser.tabs.reload(${spaTab})`);
+    await settle(800);
+    const rec3 = await iconRec();
+    check("a changed icon is picked up on the next visit", rec3.hash !== rec1.hash && rec3.updated > rec1.updated, [rec1, rec3]);
+    execFileSync("curl", ["-s", `${ORIGIN}/seticon?c=blue`]);
     await B(`browser.tabs.update(${spaTab}, {url: "chrome-extension://${extId}/history.html?container=2"})`);
     await settle();
     const hp = await pageSession("history.html");

@@ -30,7 +30,8 @@ def _png(size, rgb):
             + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
 
 
-ICON = _png(16, (0, 0, 255))  # solid blue
+ICONS = {"blue": _png(16, (0, 0, 255)), "red": _png(16, (255, 0, 0))}
+ICON = {"current": "blue"}
 
 
 class H(BaseHTTPRequestHandler):
@@ -63,8 +64,12 @@ class H(BaseHTTPRequestHandler):
         elif u.path == "/favicon.ico":
             self.send_response(200)
             self.send_header("Content-Type", "image/png")
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
-            self.wfile.write(ICON)
+            self.wfile.write(ICONS[ICON["current"]])
+        elif u.path == "/seticon":
+            ICON["current"] = q["c"]
+            self.reply(200, "ok", "text/plain")
         elif u.path == "/cached":
             # Personalised but cacheable: the classic shared-cache leak.
             self.reply(200, cookie, "text/plain", [("Cache-Control", "max-age=600")])

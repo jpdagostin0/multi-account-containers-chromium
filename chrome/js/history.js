@@ -10,16 +10,16 @@
 // in, in the extension's IndexedDB. Entries older than RETENTION_DAYS are
 // dropped; removing a container drops its history.
 //
-// Site icons are saved there too (one per origin, refreshed weekly). They're
-// fetched without cookies from the icon each page declares (favicon.js
-// reports it), and used by the new tab and history pages.
+// Site icons are saved there too, one per origin, and only ever updated when
+// the site is visited: the icon the page declares (favicon.js reports it) is
+// fetched without cookies and hashed, and the stored copy is replaced only if
+// the hash changed. Used by the new tab and history pages.
 (() => {
   "use strict";
 
   const iso = globalThis.__maccIso;
   const { IDENT_KEY, base } = globalThis.__maccCompat;
   const RETENTION_DAYS = 90;
-  const ICON_MAX_AGE = 7 * 864e5;
   const SKIP_TRANSITIONS = new Set(["auto_subframe", "manual_subframe", "reload"]);
 
   // -------------------------------------------------------------------------
@@ -199,18 +199,28 @@
   }
 
   const inflight = new Set();
+  async function sha256(blob) {
+    const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  /** Called on visits only. Re-encodes and stores the icon only if it changed. */
   async function saveIcon(origin, href) {
-    if (inflight.has(origin)) return;
+    if (inflight.has(origin)) return false;
     inflight.add(origin);
     try {
+      const blob = await globalThis.__maccHighlight.fetchIcon(href);
+      if (!blob) return false;
+      const hash = await sha256(blob);
       const { os } = await store("icons");
       const old = await req(os.get(origin));
-      if (old && old.href === href && Date.now() - old.updated < ICON_MAX_AGE) return;
-      const url = await globalThis.__maccHighlight.plainIcon(href);
-      if (!url) return;
+      if (old && old.hash === hash) return false;
+      const url = await globalThis.__maccHighlight.plainIcon(blob);
+      if (!url) return false;
       const w = await store("icons", "readwrite");
-      w.os.put({ origin, href, url, updated: Date.now() });
+      w.os.put({ origin, href, hash, url, updated: Date.now() });
       await done(w.tx);
+      return true;
     } finally {
       inflight.delete(origin);
     }

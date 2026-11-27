@@ -132,10 +132,6 @@
       const origins = [...new Set(Object.values(out).flat().map((t) => new URL(t.url).origin))];
       const icons = await globalThis.__maccHistory.iconsFor(origins);
       Object.values(out).flat().forEach((t) => { t.icon = icons[new URL(t.url).origin] || null; });
-      // Fetch icons for tiles that don't have one yet (e.g. seeded sites).
-      for (const o of origins.filter((x) => !icons[x])) {
-        globalThis.__maccHistory.saveIcon(o, `${o}/favicon.ico`).catch(() => {});
-      }
       return out;
     },
     async hide(n, url) {

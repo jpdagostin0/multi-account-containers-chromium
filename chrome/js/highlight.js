@@ -192,25 +192,34 @@
     return rec ? (COLORS[rec.color] || COLORS.blue) : null;
   }
 
-  function loadImage(href) {
+  /** Fetch an icon without cookies, from the extension (no page CORS limits). */
+  async function fetchIcon(href) {
+    if (!href || !/^(https?|data):/.test(href)) return null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const res = await fetch(href, { credentials: "omit", cache: "default", signal: ctrl.signal });
+      const blob = res.ok ? await res.blob() : null;
+      return blob && blob.size ? blob : null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function decode(blob) {
     return new Promise((resolve) => {
-      if (!href || !/^(https?|data):/.test(href)) return resolve(null);
-      const done = (img) => { clearTimeout(timer); resolve(img); };
-      const timer = setTimeout(() => done(null), 5000);
-      const fromBlob = (blob) => {
-        const url = URL.createObjectURL(blob);
-        const img = new Image();
-        img.onload = () => { URL.revokeObjectURL(url); done(img); };
-        img.onerror = () => { URL.revokeObjectURL(url); done(null); };
-        img.src = url;
-      };
-      // Fetched without cookies, from the extension (no page CORS limits).
-      fetch(href, { credentials: "omit", cache: "force-cache" })
-        .then((res) => (res.ok ? res.blob() : null))
-        .then((blob) => (blob && blob.size ? fromBlob(blob) : done(null)))
-        .catch(() => done(null));
+      if (!blob) return resolve(null);
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
     });
   }
+
+  const loadImage = async (href) => decode(await fetchIcon(href));
 
   async function markedIcon(href, color) {
     const key = `${href}|${color}`;
@@ -239,8 +248,8 @@
   }
 
   /** Unmarked 32px copy of a site icon (new tab page tiles). */
-  async function plainIcon(href) {
-    const img = await loadImage(href);
+  async function plainIcon(hrefOrBlob) {
+    const img = typeof hrefOrBlob === "string" ? await loadImage(hrefOrBlob) : await decode(hrefOrBlob);
     if (!img) return null;
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 32;
@@ -290,6 +299,7 @@
     },
     syncAll,
     plainIcon,
+    fetchIcon,
     groupOf: (windowId, n) => groups.get(`${windowId}:${n}`),
   };
 
