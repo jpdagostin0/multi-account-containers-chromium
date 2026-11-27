@@ -261,6 +261,100 @@ main.settings {
   inline-size: 60%;
 }
 
+.place-search {
+  display: flex;
+  gap: 8px;
+  margin-block: 6px;
+}
+
+.place-search input {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.places {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+}
+
+.places:empty {
+  display: none;
+}
+
+.places button {
+  align-items: baseline;
+  border-block-start: 0;
+  display: flex;
+  gap: 8px;
+  inline-size: 100%;
+  text-align: start;
+}
+
+.places li:first-child button {
+  border-block-start: 1px solid var(--border);
+}
+
+.settings input[type="range"] {
+  accent-color: var(--fg);
+  flex: none;
+  inline-size: 160px;
+}
+
+.wallpaper-image {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  margin-block-end: 8px;
+}
+
+.wallpaper-image[hidden],
+.setting[hidden] {
+  display: none;
+}
+
+.wallpaper-preview {
+  aspect-ratio: 16 / 10;
+  background: center / cover no-repeat var(--bg);
+  border: 1px solid var(--border);
+  flex: none;
+  inline-size: 140px;
+}
+
+.wallpaper-preview.empty {
+  background-image: repeating-linear-gradient(45deg, transparent 0 6px, var(--border) 6px 7px);
+}
+
+.setting .segmented {
+  margin-bottom: 0;
+}
+
+.setting.stacked {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting.stacked input[type="range"] {
+  inline-size: 100%;
+}
+
+.card > .actions:last-child {
+  margin-block-end: 0;
+}
+
+.card > .actions:last-child:has(.saved:not(.show, .error)) {
+  display: none;
+}
+
+.wallpaper-source {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-inline-size: 0;
+}
+
 @media (max-width: 560px) {
   .colors,
   .shortcuts {

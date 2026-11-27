@@ -8,6 +8,7 @@ import { DEFAULT, idOf } from "../../lib/constants";
 import { ff } from "../../lib/ff";
 import { backgroundPage } from "../background";
 import { listContainers } from "../containers";
+import { setUpAmbient } from "./ambient";
 import { setUpContainerTabs } from "./container-tabs";
 import { setUpHistoryDrawer } from "./history-drawer";
 import { setUpSearch } from "./search";
@@ -16,6 +17,7 @@ import { setUpSuggestions } from "./suggestions";
 import { section } from "./sections";
 
 const page = backgroundPage();
+setUpAmbient(page.__maccWeather, page.__maccWallpaper);
 const top = page.__maccTopSites;
 const me = await ff().tabs.getCurrent();
 const myN = idOf(me?.cookieStoreId ?? DEFAULT);

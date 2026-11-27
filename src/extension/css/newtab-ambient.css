@@ -1,0 +1,138 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* New tab page: wallpaper, the pixel art weather scene and the weather line
+   (ts/pages/newtab/ambient.ts). */
+
+#wallpaper,
+#scene,
+#wallpaper-dim {
+  block-size: 100vh;
+  inline-size: 100vw;
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
+}
+
+#wallpaper {
+  animation: ambient-in 400ms ease-out;
+  background: center / cover no-repeat;
+}
+
+#scene {
+  animation: ambient-in 400ms ease-out;
+  image-rendering: pixelated;
+  object-fit: cover;
+  object-position: center bottom;
+}
+
+#wallpaper-dim {
+  background: #000;
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+#wallpaper[hidden],
+#scene[hidden] {
+  display: none;
+}
+
+@keyframes ambient-in {
+  from { opacity: 0; }
+}
+
+#weather {
+  align-items: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  color: var(--fg);
+  display: flex;
+  gap: 10px;
+  inset-block-start: 50px;
+  inset-inline-start: 16px;
+  padding: 6px 12px 6px 10px;
+  position: fixed;
+  transition: background-color 150ms, opacity 250ms;
+}
+
+#weather[hidden] {
+  display: none;
+}
+
+#weather:hover,
+#weather:focus-visible {
+  background: var(--tile-hover);
+  outline: none;
+}
+
+.settings-open #weather {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#weather.unset {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.w-temp {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.w-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.w-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.w-place {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+:root:has(#weather:not([hidden])) main {
+  padding-block-start: max(10vh, 112px);
+}
+
+/* Loose text over a wallpaper gets a backing. */
+.has-wallpaper #container-tabs button:not([aria-current="true"]),
+.has-wallpaper #history-toggle,
+.has-wallpaper #settings-toggle,
+.has-wallpaper #weather,
+.has-wallpaper .container-section h2,
+.has-wallpaper .container-section .empty {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--tile) 84%, transparent);
+}
+
+.has-wallpaper #container-tabs button:not([aria-current="true"]):hover,
+.has-wallpaper #history-toggle:hover,
+.has-wallpaper #settings-toggle:hover,
+.has-wallpaper #weather:hover {
+  background: var(--tile-hover);
+}
+
+.has-wallpaper .container-section h2 {
+  inline-size: fit-content;
+  padding-block: 4px;
+  padding-inline-end: 12px;
+}
+
+.has-wallpaper .container-section .empty {
+  inline-size: fit-content;
+  padding: 6px 12px;
+}

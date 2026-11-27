@@ -8,10 +8,15 @@
   <title>New Tab</title>
   <link rel="stylesheet" href="css/newtab.css">
   <link rel="stylesheet" href="css/history-rows.css">
+  <link rel="stylesheet" href="css/newtab-ambient.css">
   <link rel="stylesheet" href="css/settings.css">
 </head>
 <body>
+  <div id="wallpaper" hidden></div>
+  <canvas id="scene" hidden></canvas>
+  <div id="wallpaper-dim"></div>
   <nav id="container-tabs" aria-label="Switch this tab's container"></nav>
+  <button id="weather" type="button" hidden></button>
   <button id="history-toggle" type="button" aria-controls="history-drawer" aria-expanded="false"><span class="clock"></span>History</button>
   <button id="settings-toggle" type="button" aria-controls="settings-drawer" aria-expanded="false"><span class="gear"></span>Settings</button>
   <main>

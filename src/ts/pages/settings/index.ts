@@ -8,3 +8,5 @@ import { backgroundPage } from "../background";
 import { settingsSections } from "./sections";
 
 document.getElementById("sections")!.append(...settingsSections(backgroundPage()));
+// The sections arrive after the browser looked for #weather and the like.
+if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();

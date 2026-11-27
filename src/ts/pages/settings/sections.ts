@@ -10,10 +10,14 @@ import { colorsSection } from "./colors";
 import { highlightingSection } from "./highlighting";
 import { searchSection } from "./search";
 import { onboardingSection, shortcutsSection, tabsSection } from "./tabs";
+import { wallpaperSection } from "./wallpaper";
+import { weatherSection } from "./weather";
 
 export const settingsSections = (page: BackgroundWindow): HTMLElement[] => [
   searchSection(page.__maccSearch),
   colorsSection(page.__maccTheme),
+  weatherSection(page.__maccWeather),
+  wallpaperSection(page.__maccWallpaper),
   highlightingSection(page.__maccHighlight),
   tabsSection(),
   shortcutsSection(),

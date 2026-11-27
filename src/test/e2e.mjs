@@ -80,7 +80,7 @@ async function session(c, { withErrors = true } = {}) {
   const c = await launch();
   let errors = [];
   try {
-    const { id: extId, B, settle, pageSession, P, echo, errors: errs } = await session(c);
+    const { id: extId, bg, B, settle, pageSession, P, echo, errors: errs } = await session(c);
     errors = errs;
 
     const idents = await B("browser.contextualIdentities.query({}).then(l => l.map(i => i.cookieStoreId + ':' + i.name))");
@@ -381,7 +381,7 @@ async function session(c, { withErrors = true } = {}) {
       return [Math.round(d.left), Math.round(d.width / innerWidth * 100), getComputedStyle(document.querySelector("main")).transform !== "none",
         [...document.querySelectorAll("#settings-drawer .card h2")].map(h => h.textContent).join("|")]; })()`);
     check("settings drawer slides in from the left at about 30% width, page shrinks", sd[0] === 0 && sd[1] >= 28 && sd[1] <= 32 && sd[2]
-      && sd[3] === "Search engine|Colors|Container highlighting|Tabs|Keyboard shortcuts|Introduction", sd);
+      && sd[3] === "Search engine|Colors|Weather|Wallpaper|Container highlighting|Tabs|Keyboard shortcuts|Introduction", sd);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-settings-drawer.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, dNtp)).data, "base64"));
     await P(dNtp, `document.getElementById("history-toggle").click()`);
@@ -451,7 +451,7 @@ async function session(c, { withErrors = true } = {}) {
     const opt = await pageSession("/settings.html");
     await sleep(500);
     const cards = await P(opt, `[...document.querySelectorAll(".card h2")].map(h => h.textContent)`);
-    check("settings page sections", JSON.stringify(cards) === JSON.stringify(["Search engine", "Colors", "Container highlighting", "Tabs", "Keyboard shortcuts", "Introduction"]), cards);
+    check("settings page sections", JSON.stringify(cards) === JSON.stringify(["Search engine", "Colors", "Weather", "Wallpaper", "Container highlighting", "Tabs", "Keyboard shortcuts", "Introduction"]), cards);
     const optLeft = await P(opt, "document.body.innerText.match(/.{0,30}(sync|vpn|mozilla|firefox|proxy|helper).{0,30}/i)?.[0] ?? null");
     check("settings page has no Sync, VPN, proxy or helper settings", optLeft === null, optLeft);
     await P(opt, `(() => { const s = document.getElementById("engine"); s.value = [...s.options].find(o => o.textContent === "DuckDuckGo").value; s.dispatchEvent(new Event("change")); })()`);
@@ -533,6 +533,83 @@ async function session(c, { withErrors = true } = {}) {
       && (await P(themed, `document.documentElement.dataset.browserTheme ?? null`)) === null
       && (await B(`browser.storage.local.get("currentTheme").then(s => s.currentTheme)`)) === "auto");
     await B(`browser.tabs.remove(${themedTab})`);
+
+    // Weather (Open-Meteo, answered here) and wallpaper.
+    const meteo = [];
+    c.on((m) => {
+      if (m.method !== "Fetch.requestPaused") return;
+      const u = new URL(m.params.request.url);
+      meteo.push(u.href);
+      const body = u.hostname.startsWith("geocoding")
+        ? { results: [{ name: "Testville", latitude: 10.5, longitude: 20.25, admin1: "Test State", country: "Testland" }] }
+        : { current: { temperature_2m: u.searchParams.get("latitude") === "10.5" ? 12.3 : 30, apparent_temperature: 9.6, weather_code: 63, is_day: 0, wind_speed_10m: 12, time: "2026-11-27T22:00" } };
+      c.send("Fetch.fulfillRequest", { requestId: m.params.requestId, responseCode: 200,
+        responseHeaders: [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: "*" }],
+        body: Buffer.from(JSON.stringify(body)).toString("base64") }, m.sessionId).catch(() => {});
+    });
+    await c.send("Fetch.enable", { patterns: [{ urlPattern: "*open-meteo.com*" }] }, bg);
+    await c.send("Browser.grantPermissions", { permissions: ["geolocation"], origin: `chrome-extension://${extId}` });
+    await c.send("Emulation.setGeolocationOverride", { latitude: 40.75, longitude: -73.5, accuracy: 10 }, opt);
+    // Hidden pages get no positions.
+    await P(opt, `new Promise(r => chrome.tabs.getCurrent(t => chrome.tabs.update(t.id, { active: true }, r))).then(() => 0)`);
+    await P(opt, `[...document.querySelectorAll("#weather button")].find(b => b.textContent === "Use my location").click()`);
+    let geo = null;
+    for (let i = 0; i < 50 && !geo; i++) { await sleep(100); geo = await B(`__maccWeather.settings().then(s => s.place)`); }
+    check("Use my location saves the browser's position", geo && geo.name === "My location" && geo.latitude === 40.75 && geo.longitude === -73.5,
+      [geo, await P(opt, `[document.querySelector("#weather .saved").textContent, [...document.querySelectorAll("#weather button")].map(b => b.textContent).join("|")]`)]);
+    await P(opt, `(() => { const q = document.querySelector("#weather .place-search input"); q.value = "12345"; q.nextElementSibling.click(); })()`);
+    await sleep(600);
+    const found = await P(opt, `[...document.querySelectorAll("#weather .places button")].map(b => b.textContent)`);
+    check("place search by postal code lists Open-Meteo's matches", found.length === 1 && found[0] === "TestvilleTest State, Testland", found);
+    check("geocoding asks Open-Meteo for the postal code", meteo.some((u) => u.startsWith("https://geocoding-api.open-meteo.com/v1/search?name=12345")), meteo);
+    await P(opt, `document.querySelector("#weather .places button").click()`);
+    await sleep(400);
+    const placed = await B(`__maccWeather.settings().then(s => [s.place.name, s.place.latitude, s.place.longitude])`);
+    check("picking a match saves it as the weather's place", JSON.stringify(placed) === JSON.stringify(["Testville", 10.5, 20.25]), placed);
+    const wTab = await B(`browser.tabs.create({}).then(t => t.id)`);
+    const wNtp = await pageSession("newtab");
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 750, deviceScaleFactor: 1, mobile: false }, wNtp);
+    await sleep(1200);
+    const wLine = await P(wNtp, `(() => { const w = document.getElementById("weather"), t = document.getElementById("container-tabs");
+      return [w.hidden, w.textContent, Math.round(w.getBoundingClientRect().top - t.getBoundingClientRect().bottom), document.documentElement.dataset.effect]; })()`);
+    check("weather line under the container tabs", !wLine[0] && wLine[1].startsWith("12°Rain") && wLine[1].includes("Testville") && wLine[2] >= 0 && wLine[2] < 20, wLine);
+    check("forecast asked for the place's current weather", meteo.some((u) => /api\.open-meteo\.com\/v1\/forecast\?latitude=10\.5&longitude=20\.25&current=/.test(u)), meteo.filter((u) => u.includes("forecast")));
+    check("rain plays the rain effect", wLine[3] === "rain", wLine[3]);
+    const sceneLook = async (s) => P(s, `(() => { const c = document.getElementById("scene"), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+      let h = 0, opaque = 0; for (let i = 0; i < d.length; i += 4) { h = (h * 31 + d[i] + d[i + 1] * 7 + d[i + 2] * 13) >>> 0; if (d[i + 3] === 255) opaque++; }
+      return { hidden: c.hidden, w: c.width, h: c.height, pixelated: getComputedStyle(c).imageRendering, cover: getComputedStyle(c).objectFit, hash: h, opaque: opaque / (c.width * c.height) }; })()`);
+    const s1 = await sceneLook(wNtp);
+    await sleep(400);
+    const s2 = await sceneLook(wNtp);
+    check("pixel scene: 320x180 canvas scaled up with crisp pixels", !s1.hidden && s1.w === 320 && s1.h === 180 && s1.pixelated === "pixelated" && s1.cover === "cover", s1);
+    check("pixel sky fills the scene and the rain moves", s1.opaque === 1 && s1.hash !== s2.hash, [s1.hash, s2.hash]);
+    check("text over the wallpaper gets a backing", (await P(wNtp, `getComputedStyle(document.querySelector("#history-toggle")).backgroundColor`)) !== "rgba(0, 0, 0, 0)");
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-weather-rain.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
+    await P(opt, `(() => { const s = [...document.querySelectorAll("#weather select")][0]; s.value = "snow"; s.dispatchEvent(new Event("change")); })()`);
+    await sleep(800);
+    check("picking an effect in settings changes open new tabs", (await P(wNtp, `document.documentElement.dataset.effect`)) === "snow");
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-weather-snow.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
+    await P(opt, `[...document.querySelectorAll("#weather .segmented button")].find(b => b.textContent === "°F").click()`);
+    await sleep(800);
+    check("units: °F asks Open-Meteo in fahrenheit", meteo.some((u) => u.includes("forecast") && u.includes("temperature_unit=fahrenheit")) && (await P(wNtp, `document.querySelector(".w-temp").textContent`)) === "12°");
+    // An image wallpaper: the scene turns transparent over it.
+    await P(opt, `(() => { const u = [...document.querySelectorAll(".card")].find(c => c.querySelector("h2").textContent === "Wallpaper").querySelector(".place-search input"); u.value = "${ORIGIN}/page?wallpaper=1"; u.nextElementSibling.click(); })()`);
+    await sleep(800);
+    const img = await P(wNtp, `(() => { const w = document.getElementById("wallpaper"); return [w.hidden, getComputedStyle(w).backgroundImage, getComputedStyle(w).backgroundSize]; })()`);
+    const s3 = await sceneLook(wNtp);
+    check("image wallpaper covers the page", !img[0] && img[1].includes("wallpaper=1") && img[2] === "cover", img);
+    check("weather plays over the image (transparent scene)", !s3.hidden && s3.opaque < 0.5, s3.opaque);
+    await B(`__maccWallpaper.set({ dim: 0.4 })`);
+    await sleep(400);
+    check("dim darkens the wallpaper", (await P(wNtp, `getComputedStyle(document.getElementById("wallpaper-dim")).opacity`)) === "0.4");
+    await B(`__maccWallpaper.set({ kind: "none" }).then(() => __maccWeather.set({ effects: "off", show: false }))`);
+    await sleep(500);
+    const plain = await P(wNtp, `[document.getElementById("scene").hidden, document.getElementById("wallpaper").hidden, document.getElementById("weather").hidden, document.documentElement.classList.contains("has-wallpaper")]`);
+    check("no wallpaper, effects off, weather hidden: the plain page", plain[0] && plain[1] && plain[2] && !plain[3], plain);
+    await B(`browser.tabs.remove(${wTab})`);
+    await c.send("Fetch.disable", {}, bg);
   } catch (e) {
     failed++;
     console.error("ERROR", e.message);

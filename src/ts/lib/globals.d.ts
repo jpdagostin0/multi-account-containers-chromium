@@ -14,6 +14,8 @@ import type { TopSitesApi } from "../background/topsites";
 import type { MoveDataApi } from "../background/movedata";
 import type { ThemeApi } from "../background/theme";
 import type { SearchApi } from "../background/search";
+import type { WeatherApi } from "../background/weather";
+import type { WallpaperApi } from "../background/wallpaper";
 
 export interface BackgroundGlobals {
   __maccIso: IsoApi;
@@ -23,6 +25,8 @@ export interface BackgroundGlobals {
   __maccMoveData: MoveDataApi;
   __maccTheme: ThemeApi;
   __maccSearch: SearchApi;
+  __maccWeather: WeatherApi;
+  __maccWallpaper: WallpaperApi;
   __maccCompat: CompatApi;
 }
 export type BackgroundWindow = Window & BackgroundGlobals;
@@ -36,6 +40,8 @@ declare global {
   var __maccMoveData: MoveDataApi;
   var __maccTheme: ThemeApi;
   var __maccSearch: SearchApi;
+  var __maccWeather: WeatherApi;
+  var __maccWallpaper: WallpaperApi;
   /** Upstream background (js/background/assignManager.js). */
   var assignManager: { storageArea: { isExempted(url: string, tabId: number): boolean } } | undefined;
 

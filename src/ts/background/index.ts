@@ -14,6 +14,8 @@ import { moveData } from "./movedata";
 import { search } from "./search";
 import { theme } from "./theme";
 import { topSites } from "./topsites";
+import { wallpaper } from "./wallpaper";
+import { weather } from "./weather";
 
 globalThis.__maccIso = iso;
 globalThis.__maccHighlight = highlight;
@@ -22,3 +24,5 @@ globalThis.__maccHistory = history;
 globalThis.__maccTopSites = topSites;
 globalThis.__maccTheme = theme;
 globalThis.__maccSearch = search;
+globalThis.__maccWeather = weather;
+globalThis.__maccWallpaper = wallpaper;
