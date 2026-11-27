@@ -67,6 +67,11 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(ICONS[ICON["current"]])
+        elif u.path == "/suggest":
+            # OpenSearch suggestions; the last one says whether cookies came along.
+            term = q.get("q", "")
+            self.reply(200, json.dumps([term, [f"{term} alpha", f"{term} beta", "cookie:" + ("yes" if cookie else "no")]]),
+                       "application/x-suggestions+json")
         elif u.path == "/seticon":
             ICON["current"] = q["c"]
             self.reply(200, "ok", "text/plain")

@@ -9,7 +9,7 @@
 // (ts/pages/theme.ts).
 
 import { base } from "../base";
-import { HOST } from "../proxy/state";
+import { askHelper } from "../native";
 import { paletteOf, type Palette, type ThemeColors } from "./palette";
 
 export const THEME_KEY = "maccBrowserTheme";
@@ -17,25 +17,6 @@ export const THEME_KEY = "maccBrowserTheme";
 const CHOICE_KEY = "maccThemeChoice";
 
 interface ThemeReply { type?: string; id?: number; theme?: { colors?: ThemeColors } | null }
-
-/** One request on a fresh helper connection; null if the helper is missing. */
-function askHelper(msg: Record<string, unknown>): Promise<ThemeReply | null> {
-  const { promise, resolve } = Promise.withResolvers<ThemeReply | null>();
-  let port: chrome.runtime.Port;
-  try {
-    port = chrome.runtime.connectNative(HOST);
-  } catch {
-    return Promise.resolve(null);
-  }
-  const done = (r: ThemeReply | null) => { clearTimeout(timer); port.disconnect(); resolve(r); };
-  const timer = setTimeout(() => done(null), 5000);
-  port.onMessage.addListener((m: ThemeReply) => {
-    if (m.type === "hello") port.postMessage({ ...msg, id: 1 });
-    else if (m.id === 1) done(m);
-  });
-  port.onDisconnect.addListener(() => { void chrome.runtime.lastError; clearTimeout(timer); resolve(null); });
-  return promise;
-}
 
 let current: { id: string | null; palette: Palette | null } = { id: null, palette: null };
 
@@ -55,7 +36,7 @@ async function refresh(attempt = 0): Promise<void> {
     store(null);
     return;
   }
-  const reply = await askHelper({ type: "theme", extension: theme.id, version: theme.version });
+  const reply = await askHelper<ThemeReply>({ type: "theme", extension: theme.id, version: theme.version });
   const palette = paletteOf(reply?.theme?.colors);
   current = { id: theme.id, palette };
   store(palette);

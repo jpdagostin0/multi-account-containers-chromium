@@ -11,6 +11,7 @@ import { listContainers } from "../containers";
 import { setUpContainerTabs } from "./container-tabs";
 import { setUpHistoryDrawer } from "./history-drawer";
 import { setUpSearch } from "./search";
+import { setUpSuggestions } from "./suggestions";
 import { section } from "./sections";
 
 const page = backgroundPage();
@@ -24,7 +25,11 @@ const sections = [...containers].sort((a, b) => Number(b.n === myN) - Number(a.n
 const mine = sections.find((s) => s.n === myN);
 if (mine?.color) document.documentElement.style.setProperty("--accent", mine.color);
 
-setUpSearch(me.id!, mine, top);
+const go = setUpSearch(me.id!, mine, top, page.__maccSearch);
+setUpSuggestions({
+  tabId: me.id!, mine, byCsid: new Map(containers.map((c) => [c.csid, c])),
+  search: page.__maccSearch, hist: page.__maccHistory, top, go,
+});
 setUpContainerTabs(containers, myN, me.id!, top);
 setUpHistoryDrawer(containers, myN, me.id!, page.__maccHistory, top);
 

@@ -99,7 +99,20 @@ async function session(c, { withErrors = true } = {}) {
 // isolation
 // ---------------------------------------------------------------------------
 {
-  const c = await launch({ args: ["--ignore-certificate-errors"], prepare: installHelper });
+  // A default search engine on the test server (Chromium mirrors the chosen
+  // engine into Preferences, where the helper reads it).
+  const withEngine = (profile) => {
+    installHelper(profile);
+    const engine = {
+      short_name: "Test Engine", keyword: "test", url: `${ORIGIN}/search?q={searchTerms}`,
+      suggestions_url: `${ORIGIN}/suggest?q={searchTerms}`, synced_guid: "0f3c6e1e-5a47-4d0e-9a4e-1d3a2b7c9e01",
+    };
+    fs.mkdirSync(path.join(profile, "Default"), { recursive: true });
+    fs.writeFileSync(path.join(profile, "Default", "Preferences"), JSON.stringify({
+      default_search_provider_data: { template_url_data: engine, mirrored_template_url_data: engine },
+    }));
+  };
+  const c = await launch({ args: ["--ignore-certificate-errors"], prepare: withEngine });
   let errors = [];
   try {
     const { id: extId, B, settle, pageSession, P, echo, errors: errs } = await session(c);
@@ -337,6 +350,41 @@ async function session(c, { withErrors = true } = {}) {
     const switched = await B(`browser.tabs.get(${ntpWork}).then(t => t.cookieStoreId)`);
     const nowCurrent = await P(ntpWs, `document.querySelector("section.current .name")?.textContent`);
     check("container tab switches this new tab's container", switched === "firefox-container-1" && nowCurrent === "Personal", [switched, nowCurrent]);
+
+    // Search suggestions: the default engine, open tabs, this container's history.
+    const visited = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2", url: "${ORIGIN}/page?visited-once=1"}).then(t => t.id)`);
+    await settle();
+    await B(`browser.tabs.remove(${visited})`);
+    const sTab = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2"}).then(t => t.id)`);
+    await settle();
+    const sT = (await c.targets()).filter((t) => t.url.includes("newtab")).pop();
+    const sNtp = await c.attach(sT.targetId);
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 750, deviceScaleFactor: 1, mobile: false }, sNtp);
+    await sleep(800);
+    check("search box names the default engine", (await P(sNtp, `document.getElementById("q").placeholder`)) === "Search Test Engine in Work",
+      await P(sNtp, `document.getElementById("q").placeholder`));
+    await P(sNtp, `(() => { const q = document.getElementById("q"); q.focus(); q.value = "macc"; q.dispatchEvent(new Event("input")); })()`);
+    await sleep(1500);
+    const sugg = await P(sNtp, `[...document.querySelectorAll("#suggest li")].map(li => [li.dataset.kind, li.querySelector(".s-text").textContent])`);
+    const kinds = new Set(sugg.map(([k]) => k));
+    check("suggestions include the engine's", sugg.some(([k, t]) => k === "search" && t === "macc alpha"), sugg);
+    check("engine suggestions are fetched without cookies", sugg.some(([, t]) => t === "cookie:no"), sugg);
+    check("suggestions include open tabs", kinds.has("tab"), sugg);
+    await P(sNtp, `(() => { const q = document.getElementById("q"); q.value = "visited-once"; q.dispatchEvent(new Event("input")); })()`);
+    await sleep(1200);
+    const fromHistory = await P(sNtp, `[...document.querySelectorAll('#suggest li[data-kind="history"] .s-sub')].map(e => e.textContent)`);
+    check("suggestions include this container's history", fromHistory.some((u) => u.includes("visited-once=1")), fromHistory);
+    await P(sNtp, `(() => { const q = document.getElementById("q"); q.value = "macc"; q.dispatchEvent(new Event("input")); })()`);
+    await sleep(1200);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-suggest.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, sNtp)).data, "base64"));
+    const key = (k) => P(sNtp, `document.getElementById("q").dispatchEvent(new KeyboardEvent("keydown", { key: "${k}", bubbles: true, cancelable: true }))`);
+    await key("ArrowDown");
+    await key("ArrowDown");
+    check("arrow keys put the suggestion in the box", (await P(sNtp, `document.getElementById("q").value`)) === "macc alpha");
+    const target = await P(sNtp, `(() => { const li = document.querySelector('#suggest li[data-kind="tab"]'); li.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })); return true; })()`);
+    await sleep(800);
+    check("picking an open tab switches to it and closes the new tab", target && (await B(`browser.tabs.get(${sTab}).then(() => "open", () => "closed")`)) === "closed");
     const tabsShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-ctabs.png"), Buffer.from(tabsShot.data, "base64"));
     await B(`browser.tabs.remove(${ntpWork})`);

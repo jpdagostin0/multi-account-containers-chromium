@@ -12,6 +12,7 @@ import { history } from "./history";
 import { iso } from "./isolation";
 import { moveData } from "./movedata";
 import { proxy } from "./proxy";
+import { search } from "./search";
 import { theme } from "./theme";
 import { topSites } from "./topsites";
 
@@ -22,3 +23,4 @@ globalThis.__maccMoveData = moveData;
 globalThis.__maccHistory = history;
 globalThis.__maccTopSites = topSites;
 globalThis.__maccTheme = theme;
+globalThis.__maccSearch = search;
