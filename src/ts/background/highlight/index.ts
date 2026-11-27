@@ -4,15 +4,14 @@
 
 // Container highlighting for Chromium (background page): Firefox draws a
 // colored line on container tabs; Chromium extensions can't style tabs, so
-// there are three options: favicon-marker.ts (default), tab-groups.ts and
-// page-border.ts.
+// there are two opt-in options: tab-groups.ts and page-border.ts (plus the
+// toolbar badge, isolation/badge.ts).
 
 import { IDENT_KEY, SETTINGS_KEY } from "../../lib/constants";
 import { base } from "../base";
 import { fetchIcon, plainIcon } from "../icons";
 import { iso } from "../isolation";
 import { COMPANION, companion, pingCompanion } from "./companion";
-import { refreshFavicon } from "./favicon-marker";
 import { applyBorder, borderColorForTab } from "./page-border";
 import { setSettings, settings } from "./settings";
 import { adoptExistingGroups, groupOf, restyleGroups, scheduleGroupSync } from "./tab-groups";
@@ -20,7 +19,6 @@ import { adoptExistingGroups, groupOf, restyleGroups, scheduleGroupSync } from "
 function highlightTab(tabId: number): void {
   scheduleGroupSync(tabId);
   applyBorder(tabId);
-  refreshFavicon(tabId);
 }
 
 async function syncAll(): Promise<void> {
@@ -41,10 +39,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (changes[IDENT_KEY]) {
     setTimeout(async () => {
       restyleGroups();
-      for (const t of await base.tabs.query({})) {
-        applyBorder(t.id!);
-        refreshFavicon(t.id!);
-      }
+      for (const t of await base.tabs.query({})) applyBorder(t.id!);
     }, 0);
   }
 });

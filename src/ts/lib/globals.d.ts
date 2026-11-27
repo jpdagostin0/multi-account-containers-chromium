@@ -42,8 +42,6 @@ declare global {
   // Content-script hooks on the top window.
   interface Window {
     __maccSetBorder?: (color: string | null) => void;
-    __maccFaviconInstance?: object;
-    __maccRefreshFavicon?: () => void;
   }
 
   // IndexedDB getAllRecords() (Chromium 141+): one call instead of a cursor

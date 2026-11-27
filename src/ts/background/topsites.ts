@@ -6,9 +6,9 @@
 //
 // Chromium's history and topSites are shared by all containers, so visits are
 // counted here per container: every committed top-level http(s) navigation
-// bumps a frecency score (visits decayed by age) for its page in the tab's
-// container. "No container" starts out seeded from chrome.topSites, minus
-// sites we've seen in containers. Site icons come from history.
+// bumps a frecency score (visits decayed by age) for its site (origin) in the
+// tab's container. "No container" starts out seeded from chrome.topSites,
+// minus sites we've seen in containers. Site icons come from history.
 
 import { IDENT_KEY, whenIdle, type IdentityState } from "../lib/constants";
 import { base } from "./base";
@@ -21,7 +21,7 @@ const PER_CONTAINER = 60;
 const SKIP_TRANSITIONS = new Set(["auto_subframe", "manual_subframe", "reload", "form_submit"]);
 
 interface Entry { title: string; score: number; last: number; hidden?: boolean; seeded?: boolean }
-/** container number -> page -> entry */
+/** container number -> site ("https://host/") -> entry */
 type Data = Record<string, Record<string, Entry>>;
 export interface TopSite { url: string; title: string; score: number; icon?: string | null }
 
@@ -31,19 +31,48 @@ let saveTimer: ReturnType<typeof setTimeout> | undefined;
 const decay = (score: number, last: number, now: number) =>
   score * Math.pow(0.5, (now - last) / (HALF_LIFE_DAYS * 864e5));
 
-/** Top sites are pages people come back to: ignore query/hash noise. */
-function pageKey(url: string | undefined): string | null {
+/** Visits count for the site, not the page: its origin's front page. */
+function siteKey(url: string | undefined): string | null {
   if (!url || !URL.canParse(url)) return null;
   const u = new URL(url);
   if (!/^https?:$/.test(u.protocol)) return null;
-  return `${u.origin}${u.pathname === "/" ? "/" : u.pathname.replace(/\/$/, "")}`;
+  return `${u.origin}/`;
+}
+
+/** Only a site's front page names the site; other pages' titles name pages. */
+const isFrontPage = (url: string | undefined) => !!url && URL.canParse(url) && new URL(url).pathname === "/";
+
+/** Older versions kept one entry per page: fold them into their sites. */
+function mergeIntoSites(old: Data): Data {
+  const now = Date.now();
+  const out: Data = {};
+  for (const [n, entries] of Object.entries(old)) {
+    const b: Record<string, Entry> = (out[n] = {});
+    for (const [url, e] of Object.entries(entries)) {
+      const k = siteKey(url);
+      if (!k) continue;
+      const merged = b[k];
+      if (!merged) {
+        b[k] = { ...e, score: decay(e.score, e.last, now), last: now, title: url === k ? e.title : "", hidden: url === k ? e.hidden : undefined };
+        continue;
+      }
+      merged.score += decay(e.score, e.last, now);
+      if (url === k) merged.title = e.title;
+      if (url === k && e.hidden) merged.hidden = true;
+      if (!e.seeded) delete merged.seeded;
+    }
+  }
+  return out;
 }
 
 let loading: Promise<void> | null = null;
 function load(): Promise<void> {
   loading ??= (async () => {
     const all = await base.storage.local.get(KEY);
-    data = (all[KEY] as Data | undefined) ?? {};
+    const stored = (all[KEY] as Data | undefined) ?? {};
+    const perPage = Object.values(stored).some((b) => Object.keys(b).some((url) => url !== siteKey(url)));
+    data = perPage ? mergeIntoSites(stored) : stored;
+    if (perPage) save();
     if (!all[KEY]) await seedDefault();
   })();
   return loading;
@@ -76,14 +105,14 @@ async function seedDefault(): Promise<void> {
   const now = Date.now();
   const b = bucket(0);
   top.forEach((s, i) => {
-    const k = pageKey(s.url);
-    if (k && !b[k]) b[k] = { title: s.title || "", score: Math.max(1, 10 - i * 0.5), last: now, seeded: true };
+    const k = siteKey(s.url);
+    if (k && !b[k]) b[k] = { title: isFrontPage(s.url) ? s.title || "" : "", score: Math.max(1, 10 - i * 0.5), last: now, seeded: true };
   });
   save();
 }
 
 function record(n: number, url: string): void {
-  const k = pageKey(url);
+  const k = siteKey(url);
   if (!k) return;
   const now = Date.now();
   const b = bucket(n);
@@ -98,7 +127,8 @@ function record(n: number, url: string): void {
 }
 
 function setTitle(n: number, url: string | undefined, title: string): void {
-  const k = pageKey(url);
+  if (!isFrontPage(url)) return;
+  const k = siteKey(url);
   const e = k ? data[String(n)]?.[k] : undefined;
   if (e && title && e.title !== title) {
     e.title = title;

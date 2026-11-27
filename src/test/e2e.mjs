@@ -148,27 +148,10 @@ async function session(c, { withErrors = true } = {}) {
     const cs = await P(work, "cookieStore.getAll().then(l => l.map(c => c.name).sort())");
     check("cookieStore filtered", JSON.stringify(cs) === JSON.stringify(["js", "sid"]), cs);
 
-    // Highlighting: favicon dot (default), then page border + tab groups.
+    // Highlighting: tab icons are left alone; page border + tab groups are opt-in.
     await sleep(500);
-    const iconPixels = (s) => P(s, `(async () => {
-      const l = document.querySelector('link[rel~="icon"]');
-      if (!l || !l.href.startsWith("data:")) return null;
-      const img = new Image(); img.src = l.href; await img.decode();
-      const c = document.createElement("canvas"); c.width = c.height = 32;
-      const x = c.getContext("2d"); x.drawImage(img, 0, 0);
-      const px = (a, b) => Array.from(x.getImageData(a, b, 1, 1).data.slice(0, 3)).join(",");
-      return { icon: px(19, 16), dot: px(1, 16) };
-    })()`);
-    const near = (px, rgb) => !!px && px.split(",").every((v, i) => Math.abs(Number(v) - rgb[i]) <= 3);
-    const wp = await iconPixels(work);
-    check("container tab favicon keeps the site icon and gets an orange line", wp && near(wp.icon, [0, 0, 255]) && near(wp.dot, [255, 159, 0]), wp);
-    let tabIcon = "";
-    for (let i = 0; i < 30 && !tabIcon.startsWith("data:"); i++) {
-      tabIcon = (await B(`browser.tabs.get(${workTab}).then(t => t.favIconUrl || "")`));
-      if (!tabIcon.startsWith("data:")) await sleep(100);
-    }
-    check("browser uses the marked icon for the tab", tabIcon.startsWith("data:image/png"), tabIcon.slice(0, 40));
-    check("default tab favicon untouched", (await iconPixels(def)) === null);
+    const tabIcon = await B(`browser.tabs.get(${workTab}).then(t => t.favIconUrl || "")`);
+    check("container tab keeps the site's own icon", tabIcon.startsWith("http"), tabIcon.slice(0, 60));
     check("tab groups off by default", (await B(`browser.tabs.get(${workTab}).then(t => t.groupId)`)) === -1);
     await B("__maccHighlight.setSettings({tabGroups: true, pageBorder: true})");
     await B("__maccHighlight.syncAll()");
@@ -188,14 +171,11 @@ async function session(c, { withErrors = true } = {}) {
     const group2 = await B(`new Promise(r => chrome.runtime.sendMessage("${COMPANION_ID}", {op: "get", groupId: ${gid}}, r)).then(x => x.group)`);
     check("renaming/recoloring a container restyles its group", group2.title === "Work!" && group2.color === "purple", group2);
     check("…and its page border", (await frameColor(work)) === "#af51f5", await frameColor(work));
-    check("…and its icon line", near(((await iconPixels(work)) || {}).dot, [175, 81, 245]), await iconPixels(work));
     await B(`browser.contextualIdentities.update("firefox-container-2", {name: "Work", color: "orange"})`);
-    await B("__maccHighlight.setSettings({pageBorder: false, faviconMarker: false, tabGroups: false})");
+    await B("__maccHighlight.setSettings({pageBorder: false, tabGroups: false})");
     await sleep(800);
     check("page border can be turned off", (await frameColor(work)) === null);
-    check("icon line can be turned off", (await iconPixels(work)) === null);
     check("turning tab groups off ungroups", (await B(`browser.tabs.get(${workTab}).then(t => t.groupId)`)) === -1);
-    await B("__maccHighlight.setSettings({faviconMarker: true})");
 
     // HTTP cache: a personalised, cacheable response must not cross containers.
     const cachedWork = await P(work, "fetch('/cached').then(r => r.text())");
@@ -309,7 +289,10 @@ async function session(c, { withErrors = true } = {}) {
     await sleep(500);
     const ntpSections = await P(ntp, `[...document.querySelectorAll("section")].map(s => [s.querySelector(".name").textContent, [...s.querySelectorAll(".tile a")].map(a => a.href)])`);
     const work2 = ntpSections.find(([n]) => n === "Work");
-    check("new tab page lists top sites per container", ntpSections[0][0] === "No container" && work2 && work2[1].includes(`${ORIGIN}/set`) && work2[1].includes(`${ORIGIN}/csp`), ntpSections);
+    check("new tab page lists top sites per container", ntpSections[0][0] === "No container" && work2 && work2[1].includes(`${ORIGIN}/`), ntpSections);
+    check("top sites are ranked per site, not per page", ntpSections.every(([, urls]) => urls.every((u) => new URL(u).pathname === "/") && new Set(urls).size === urls.length), ntpSections);
+    const tileLook = await P(ntp, `(() => { const a = document.querySelector(".tile a"); return [getComputedStyle(a).borderRadius, getComputedStyle(a, "::before").content, getComputedStyle(document.getElementById("q")).borderRadius]; })()`);
+    check("new tab tiles are square with no color bar", tileLook[0] === "0px" && tileLook[1] === "none" && tileLook[2] === "0px", tileLook);
     check("tab URL looks like Firefox's new tab to upstream", (await B(`browser.tabs.get(${ntpTab}).then(t => t.url)`)) === "about:newtab");
     await P(ntp, `document.querySelector('section[data-container="firefox-container-2"] .tile a').click()`);
     await settle();

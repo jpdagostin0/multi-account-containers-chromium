@@ -7,6 +7,7 @@
 // cookies and hashed, and the stored copy is replaced only if the hash
 // changed. Used by the new tab and history pages.
 
+import { lastError } from "../../lib/constants";
 import { done, req } from "../../lib/idb";
 import { base } from "../base";
 import { fetchIcon, plainIcon } from "../icons";
@@ -56,6 +57,16 @@ chrome.runtime.onMessage.addListener((msg: { __macc?: string; href?: string } | 
   if (sender.tab.incognito || !sender.tab.url || !URL.canParse(sender.tab.url)) return;
   saveIcon(new URL(sender.tab.url).origin, msg.href).catch(() => {});
 });
+
+/**
+ * Tabs open before the extension (re)started don't have the content script:
+ * inject it, which also undoes older versions' container-marked tab icons.
+ */
+export async function reportOpenTabs(): Promise<void> {
+  for (const t of await base.tabs.query({ url: ["http://*/*", "https://*/*"] })) {
+    chrome.tabs.executeScript(t.id!, { file: "js/chrome/site-icon.js" }, lastError);
+  }
+}
 
 /** Icons saved by older versions in storage.local move into the database. */
 export async function migrateLegacyIcons(): Promise<void> {

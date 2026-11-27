@@ -12,7 +12,7 @@ import { clear, prune, remove } from "./delete";
 import "./menu";
 import { query } from "./query";
 import "./record";
-import { iconsFor, migrateLegacyIcons, saveIcon } from "./site-icons";
+import { iconsFor, migrateLegacyIcons, reportOpenTabs, saveIcon } from "./site-icons";
 
 export type { Visit } from "./db";
 
@@ -20,5 +20,6 @@ export const history = { query, remove, clear, iconsFor, prune, saveIcon };
 export type HistoryApi = typeof history;
 
 migrateLegacyIcons().catch(() => {});
+reportOpenTabs().catch(() => {});
 prune().catch(() => {});
 setInterval(() => prune().catch(() => {}), 6 * 3600e3);

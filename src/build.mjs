@@ -92,7 +92,7 @@ const bundles = [
   ["compat/index.ts", "compat.js", "iife"],
   ["background/index.ts", "background.js", "iife"],
   ["content/index.ts", "content.js", "iife"],
-  ["favicon.ts", "favicon.js", "iife"],
+  ["site-icon.ts", "site-icon.js", "iife"],
   ["pages/newtab/index.ts", "newtab.js", "esm"],
   ["pages/history/index.ts", "history-page.js", "esm"],
   ["pages/options/index.ts", "options-chromium.js", "esm"],
@@ -194,7 +194,7 @@ manifest.options_ui = { page: manifest.options_ui.page, open_in_tab: true };
 manifest.content_scripts = [
   {
     matches: ["<all_urls>"],
-    js: ["js/chrome/content.js", "js/chrome/favicon.js"],
+    js: ["js/chrome/content.js", "js/chrome/site-icon.js"],
     run_at: "document_start",
     all_frames: true,
     match_about_blank: true,

@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// Site icon fetching and drawing (background page), shared by highlight.ts
-// (container-marked tab icons) and history.ts (saved icons).
+// Site icon fetching and drawing (background page) for the saved site icons
+// (history/site-icons.ts).
 //
 // Decoding uses createImageBitmap, which decodes off the main thread and
 // scales during decode. SVG icons, which createImageBitmap can't take from a
@@ -55,29 +55,7 @@ function render(draw: (ctx: CanvasRenderingContext2D) => void): string {
 
 const close = (img: CanvasImageSource | null) => { if (img instanceof ImageBitmap) img.close(); };
 
-/**
- * The site's icon with a line in the container's color down its left edge
- * (2 CSS px at the usual 16px tab icon size), the icon shrunk beside it.
- */
-export async function markedIconFrom(blob: Blob | null, color: string): Promise<string> {
-  const BAR = 4;
-  const GAP = 2;
-  const size = SIZE - BAR - GAP;
-  const img = await decode(blob, size);
-  try {
-    return render((ctx) => {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(0, 0, BAR, SIZE, BAR / 2);
-      ctx.fill();
-      if (img) ctx.drawImage(img, BAR + GAP, (SIZE - size) / 2, size, size);
-    });
-  } finally {
-    close(img);
-  }
-}
-
-/** Unmarked 32px copy of a site icon (new tab and history pages). */
+/** 32px copy of a site icon (new tab and history pages). */
 export async function plainIcon(hrefOrBlob: string | Blob | null): Promise<string | null> {
   const blob = typeof hrefOrBlob === "string" ? await fetchIcon(hrefOrBlob) : hrefOrBlob;
   const img = await decode(blob, SIZE);

@@ -8,7 +8,7 @@ import { SETTINGS_KEY } from "../../lib/constants";
 import { base } from "../base";
 import { iso } from "../isolation";
 
-const DEFAULTS = { faviconMarker: true, tabGroups: false, pageBorder: false };
+const DEFAULTS = { tabGroups: false, pageBorder: false };
 export type Settings = typeof DEFAULTS;
 
 export const settings = (): Settings => ({ ...DEFAULTS, ...(iso.mirror[SETTINGS_KEY] || {}) });
