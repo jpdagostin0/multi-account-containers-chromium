@@ -4,7 +4,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Builds the Chromium (Manifest V2) extension into dist/chromium from the
-// untouched Firefox sources in ../src plus the compat layer in ./js.
+// untouched Firefox sources in ../src plus the TypeScript port in ./src.
 //
 //   node chrome/build.mjs [--zip]
 
@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import * as esbuild from "esbuild";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
@@ -34,7 +35,7 @@ fs.cpSync(src, out, { recursive: true });
 // Locales: Chromium rejects stray files in _locales.
 const locales = path.join(out, "_locales");
 const english = JSON.parse(fs.readFileSync(path.join(locales, "en", "messages.json"), "utf8"));
-// Chromium also only accepts [A-Za-z0-9_] in message names (compat.js maps
+// Chromium also only accepts [A-Za-z0-9_] in message names (src/compat/stubs.ts maps
 // the lookups the same way).
 for (const entry of fs.readdirSync(locales, { withFileTypes: true })) {
   const file = path.join(locales, entry.name, "messages.json");
@@ -58,13 +59,57 @@ for (const entry of fs.readdirSync(locales, { withFileTypes: true })) {
 const jsOut = path.join(out, "js", "chrome");
 fs.mkdirSync(jsOut, { recursive: true });
 fs.copyFileSync(polyfill, path.join(jsOut, "browser-polyfill.js"));
-fs.copyFileSync(path.join(here, "node_modules", "tldts", "dist", "index.umd.min.js"), path.join(jsOut, "tldts.js"));
 for (const f of fs.readdirSync(path.join(here, "pages"))) {
   fs.copyFileSync(path.join(here, "pages", f), path.join(out, f));
 }
-for (const f of fs.readdirSync(path.join(here, "js"))) {
-  fs.copyFileSync(path.join(here, "js", f), path.join(jsOut, f));
-}
+
+// TypeScript sources -> one bundle per page / script context.
+const TARGET = "chrome120";
+const srcTs = path.join(here, "src");
+
+// `import source from "./entry?script"`: the entry bundled on its own into a
+// self-contained expression evaluating to its default export, as a string.
+// For code that runs elsewhere (page main world, tabs.executeScript).
+const scriptImports = {
+  name: "script-imports",
+  setup(build) {
+    build.onResolve({ filter: /\?script$/ }, async (args) => {
+      const r = await build.resolve(args.path.replace(/\?script$/, ""), { resolveDir: args.resolveDir, kind: args.kind });
+      if (r.errors.length) return { errors: r.errors };
+      return { path: r.path, namespace: "script" };
+    });
+    build.onLoad({ filter: /.*/, namespace: "script" }, async (args) => {
+      const r = await esbuild.build({
+        entryPoints: [args.path], bundle: true, write: false, format: "iife",
+        globalName: "__maccEntry", target: TARGET, legalComments: "none", plugins: [scriptImports],
+      });
+      const code = `(() => { ${r.outputFiles[0].text}; return __maccEntry.default; })()`;
+      return { contents: `export default ${JSON.stringify(code)};`, loader: "js", watchFiles: [args.path] };
+    });
+  },
+};
+
+const bundles = [
+  // [entry, output, format]
+  ["compat/index.ts", "compat.js", "iife"],
+  ["background/index.ts", "background.js", "iife"],
+  ["content/index.ts", "content.js", "iife"],
+  ["favicon.ts", "favicon.js", "iife"],
+  ["pages/newtab/index.ts", "newtab.js", "esm"],
+  ["pages/history/index.ts", "history-page.js", "esm"],
+  ["pages/options/index.ts", "options-chromium.js", "esm"],
+  ["pages/proxy-status.ts", "proxy-status.js", "esm"],
+];
+await Promise.all(bundles.map(([entry, file, format]) => esbuild.build({
+  entryPoints: [path.join(srcTs, entry)],
+  outfile: path.join(jsOut, file),
+  bundle: true,
+  format,
+  target: TARGET,
+  legalComments: "none",
+  plugins: [scriptImports],
+  logLevel: "warning",
+})));
 fs.cpSync(path.join(here, "icons"), path.join(out, "icons"), { recursive: true });
 
 // Icon tinting: see chrome/css/chromium.css. `context-fill` is Firefox-only
@@ -99,14 +144,14 @@ for (const file of walk(out)) {
   const rel = path.relative(path.dirname(file), jsOut).split(path.sep).join("/");
   const scripts = ["browser-polyfill.js", "compat.js"];
   if (file === path.join(out, "js", "background", "index.html")) {
-    scripts.push("tldts.js", "purge.js", "isolation.js", "proxy.js", "highlight.js", "movedata.js", "history.js", "topsites.js");
+    scripts.push("background.js");
   }
   const tags = scripts.map((s) => `<script src="${rel}/${s}"></script>`).join("\n    ");
   const at = html.search(/<script\b/i);
   if (at < 0) continue;
   html = `${html.slice(0, at)}${tags}\n    ${html.slice(at)}`;
   if (file === path.join(out, "options.html")) {
-    html = html.replace("</body>", `  <script src="${rel}/options-chromium.js"></script>\n  </body>`);
+    html = html.replace("</body>", `  <script type="module" src="${rel}/options-chromium.js"></script>\n  </body>`);
   }
   fs.writeFileSync(file, html);
 }
@@ -151,7 +196,7 @@ manifest.options_ui = { page: manifest.options_ui.page, open_in_tab: true };
 manifest.content_scripts = [
   {
     matches: ["<all_urls>"],
-    js: ["js/chrome/purge.js", "js/chrome/content-isolation.js", "js/chrome/favicon.js"],
+    js: ["js/chrome/content.js", "js/chrome/favicon.js"],
     run_at: "document_start",
     all_frames: true,
     match_about_blank: true,

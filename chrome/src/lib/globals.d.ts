@@ -1,0 +1,61 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// Globals shared between the bundles. The background page publishes its
+// modules on `globalThis.__macc*` so extension pages can reach them through
+// chrome.extension.getBackgroundPage() (and so the e2e test can drive them).
+
+import type { CompatApi } from "../compat";
+import type { IsoApi } from "../background/isolation";
+import type { ProxyApi } from "../background/proxy";
+import type { HighlightApi } from "../background/highlight";
+import type { HistoryApi } from "../background/history";
+import type { TopSitesApi } from "../background/topsites";
+import type { MoveDataApi } from "../background/movedata";
+
+export interface BackgroundGlobals {
+  __maccIso: IsoApi;
+  __maccProxy: ProxyApi;
+  __maccHighlight: HighlightApi;
+  __maccHistory: HistoryApi;
+  __maccTopSites: TopSitesApi;
+  __maccMoveData: MoveDataApi;
+  __maccCompat: CompatApi;
+}
+export type BackgroundWindow = Window & BackgroundGlobals;
+
+declare global {
+  var __maccCompat: CompatApi;
+  var __maccIso: IsoApi;
+  var __maccProxy: ProxyApi;
+  var __maccHighlight: HighlightApi;
+  var __maccHistory: HistoryApi;
+  var __maccTopSites: TopSitesApi;
+  var __maccMoveData: MoveDataApi;
+  /** Upstream background (js/background/assignManager.js). */
+  var assignManager: { storageArea: { isExempted(url: string, tabId: number): boolean } } | undefined;
+
+  // Content-script hooks on the top window.
+  interface Window {
+    __maccSetBorder?: (color: string | null) => void;
+    __maccFaviconInstance?: object;
+    __maccRefreshFavicon?: () => void;
+  }
+
+  // IndexedDB getAllRecords() (Chromium 141+): one call instead of a cursor
+  // round trip per record, with direction support.
+  interface IDBRecord<V = unknown> {
+    readonly key: IDBValidKey;
+    readonly primaryKey: IDBValidKey;
+    readonly value: V;
+  }
+  interface IDBGetAllOptions {
+    query?: IDBValidKey | IDBKeyRange | null;
+    count?: number;
+    direction?: IDBCursorDirection;
+  }
+  interface IDBIndex {
+    getAllRecords?(options?: IDBGetAllOptions): IDBRequest<IDBRecord[]>;
+  }
+}

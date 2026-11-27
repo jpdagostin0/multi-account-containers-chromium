@@ -1,0 +1,22 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+// Background page entry: the Chromium-specific modules, loaded after
+// compat.js and before the upstream background scripts. Each module is
+// published on globalThis so extension pages (getBackgroundPage()) and the
+// e2e test can reach it.
+
+import { highlight } from "./highlight";
+import { history } from "./history";
+import { iso } from "./isolation";
+import { moveData } from "./movedata";
+import { proxy } from "./proxy";
+import { topSites } from "./topsites";
+
+globalThis.__maccIso = iso;
+globalThis.__maccProxy = proxy;
+globalThis.__maccHighlight = highlight;
+globalThis.__maccMoveData = moveData;
+globalThis.__maccHistory = history;
+globalThis.__maccTopSites = topSites;
