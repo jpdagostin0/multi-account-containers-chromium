@@ -346,6 +346,16 @@ async function session(c, { withErrors = true } = {}) {
     await P(ntpWs, `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
     await sleep(600);
     check("Escape closes the history drawer", (await P(ntpWs, `getComputedStyle(document.getElementById("history-drawer")).visibility`)) === "hidden");
+    // container tabs: switch this new tab to another container
+    const ctabs = await P(ntpWs, `[...document.querySelectorAll("#container-tabs button")].map(b => [b.textContent, b.getAttribute("aria-current")])`);
+    check("container tabs list every container, current one marked", ctabs.length === 5 && ctabs.find(([n]) => n === "Work")[1] === "true", ctabs);
+    await P(ntpWs, `[...document.querySelectorAll("#container-tabs button")].find(b => b.textContent === "Personal").click()`);
+    await sleep(1200);
+    const switched = await B(`browser.tabs.get(${ntpWork}).then(t => t.cookieStoreId)`);
+    const nowCurrent = await P(ntpWs, `document.querySelector("section.current .name")?.textContent`);
+    check("container tab switches this new tab's container", switched === "firefox-container-1" && nowCurrent === "Personal", [switched, nowCurrent]);
+    const tabsShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-ctabs.png"), Buffer.from(tabsShot.data, "base64"));
     await B(`browser.tabs.remove(${ntpWork})`);
 
     // -------------------------------------------------------------------------

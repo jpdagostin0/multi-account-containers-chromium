@@ -158,5 +158,9 @@ export const topSites = {
     iso.setTab(tabId, csid);
     await base.tabs.update(tabId, { url });
   },
+  /** Move a tab (this new tab page) into another container. */
+  switchTab(tabId: number, csid: string): void {
+    iso.setTab(tabId, csid);
+  },
 };
 export type TopSitesApi = typeof topSites;

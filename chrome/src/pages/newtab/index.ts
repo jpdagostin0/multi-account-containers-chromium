@@ -8,6 +8,7 @@ import { DEFAULT, idOf } from "../../lib/constants";
 import { ff } from "../../lib/ff";
 import { backgroundPage } from "../background";
 import { listContainers } from "../containers";
+import { setUpContainerTabs } from "./container-tabs";
 import { setUpHistoryDrawer } from "./history-drawer";
 import { setUpSearch } from "./search";
 import { section } from "./sections";
@@ -24,6 +25,7 @@ const mine = sections.find((s) => s.n === myN);
 if (mine?.color) document.documentElement.style.setProperty("--accent", mine.color);
 
 setUpSearch(me.id!, mine, top);
+setUpContainerTabs(containers, myN, me.id!, top);
 setUpHistoryDrawer(containers, myN, me.id!, page.__maccHistory, top);
 
 const lists = await top.list(16);
