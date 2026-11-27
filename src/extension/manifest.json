@@ -155,14 +155,6 @@
       }
     ]
   },
-  "page_action": {
-    "browser_style": true,
-    "default_icon": "img/container-openin-16.svg",
-    "default_title": "__MSG_alwaysOpenSiteInContainer__",
-    "default_popup": "pageActionPopup.html",
-    "pinned": false,
-    "show_matches": ["*://*/*"]
-  },
   "background": {
     "page": "js/background/index.html"
   },

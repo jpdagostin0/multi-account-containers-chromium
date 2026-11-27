@@ -184,8 +184,6 @@ manifest.browser_action = {
   default_title: "Multi-Account Containers",
   default_popup: manifest.browser_action.default_popup,
 };
-// Chromium allows a browser_action or a page_action, not both.
-delete manifest.page_action;
 manifest.options_ui = { page: manifest.options_ui.page, open_in_tab: true };
 manifest.content_scripts = [
   {

@@ -448,12 +448,19 @@ async function session(c, { withErrors = true } = {}) {
     const optText = await P(opt, "document.getElementById('macc-proxy-status').innerText");
     check("options page shows proxy status", /routing 2 container/.test(optText), optText);
 
-    // Popup renders (skip the first-run onboarding panels).
-    await B(`browser.storage.local.set({"onboarding-stage": 8})`);
+    // Onboarding ends after its fourth panel (the Firefox-only ones are gone).
+    await B(`browser.storage.local.set({"onboarding-stage": 3})`);
     await B(`browser.tabs.create({url: "chrome-extension://${extId}/popup.html"})`);
     await settle();
     const popT = (await c.targets()).find((t) => t.url.endsWith("/popup.html"));
     const pop = await c.attach(popT.targetId);
+    await sleep(500);
+    await P(pop, `document.getElementById("onboarding-done-button").click()`);
+    await sleep(500);
+    check("onboarding finishes at the containers list", (await P(pop, `!document.getElementById("container-panel").classList.contains("hide")`))
+      && (await B(`browser.storage.local.get("onboarding-stage").then(s => s["onboarding-stage"])`)) === 8);
+    await P(pop, "location.reload()");
+    await sleep(800);
     await c.send("Runtime.enable", {}, pop);
     await c.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 600, deviceScaleFactor: 2, mobile: false }, pop);
     await sleep(500);
@@ -469,7 +476,8 @@ async function session(c, { withErrors = true } = {}) {
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-edit.png"), Buffer.from(editShot.data, "base64"));
     const proxyLabel = await P(pop, "document.getElementById('advanced-proxy-address').textContent");
     check("edit panel shows the container's proxy", proxyLabel === `http://127.0.0.1:${UP_A}`, proxyLabel);
-    check("Mozilla VPN controls hidden", await P(pop, "getComputedStyle(document.querySelector('moz-vpn-container-ui')).display === 'none'"));
+    { const brand = await P(pop, "[(document.body.innerText + document.title).match(/.{0,40}(firefox|mozilla).{0,40}/i)?.[0] ?? null, document.querySelector('moz-vpn-container-ui, img[src*=mozilla]')?.outerHTML ?? null]");
+      check("popup has no Firefox branding or Mozilla VPN UI", brand[0] === null && brand[1] === null, brand); }
     const sel = await P(pop, `["color", "icon"].map(k => { const i = document.querySelector('#edit-container-panel-choose-' + k + ' input:checked'); return i ? [i.value, getComputedStyle(i.nextElementSibling).backgroundColor] : null; })`);
     check("edit panel marks the current color and icon", sel[0] && sel[0][0] === "orange" && sel[1] && sel[1][0] === "briefcase"
       && sel.every((x) => x[1] !== "rgba(0, 0, 0, 0)"), sel);

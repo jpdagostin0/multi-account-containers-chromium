@@ -2358,10 +2358,3 @@ tr:hover > td > .reset-button {
 .container-panel-row .clickable:focus .usercontext-icon {
   background-color: #0094fb;
 }
-
-/* Mozilla VPN is Firefox-only. Per-container proxies stay available through
- * "Advanced proxy settings". */
-moz-vpn-container-ui,
-.vpn-status-container-list {
-  display: none !important;
-}
