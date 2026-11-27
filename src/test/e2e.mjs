@@ -447,6 +447,8 @@ async function session(c, { withErrors = true } = {}) {
     await sleep(500);
     const optText = await P(opt, "document.getElementById('macc-proxy-status').innerText");
     check("options page shows proxy status", /routing 2 container/.test(optText), optText);
+    const optLeft = await P(opt, "document.body.innerText.match(/.{0,30}(sync|vpn|mozilla|firefox).{0,30}/i)?.[0] ?? null");
+    check("options page has no Sync or Mozilla VPN settings", optLeft === null, optLeft);
 
     // Onboarding ends after its fourth panel (the Firefox-only ones are gone).
     await B(`browser.storage.local.set({"onboarding-stage": 3})`);

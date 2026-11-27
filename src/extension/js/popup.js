@@ -1459,7 +1459,7 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     }
     const proxyData = await proxifiedContainers.retrieve(identity.cookieStoreId);
     const proxy = proxyData && proxyData.proxy;
-    if (proxy && proxy.type && !MozillaVPN.proxyIsDisabled(proxy)) {
+    if (proxy && proxy.type) {
       proxyAddress.textContent = `${proxy.type}://${proxy.host}:${proxy.port}`;
     }
   },
@@ -1599,7 +1599,7 @@ Logic.registerPanel(P_ADVANCED_PROXY_SETTINGS, {
     };
 
     const edit_proxy_dom = function(proxy) {
-      if (!proxy.type || MozillaVPN.proxyIsDisabled(proxy)) {
+      if (!proxy.type) {
         resetProxyInput();
         return;
       }

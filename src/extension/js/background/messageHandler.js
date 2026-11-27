@@ -17,9 +17,6 @@ const messageHandler = {
       case "setShortcut":
         identityState.storageArea.setKeyboardShortcut(m.shortcut, m.cookieStoreId);
         break;
-      case "resetSync":
-        response = sync.resetSync();
-        break;
       case "deleteContainer":
         response = backgroundLogic.deleteContainer(m.message.userContextId);
         break;
@@ -112,22 +109,6 @@ const messageHandler = {
         response = browser.tabs.get(tab.id).then((tab) => {
           return assignManager._setOrRemoveAssignment(tab.id, m.url, m.newUserContextId, m.value);
         });
-        break;
-
-      case "MozillaVPN_attemptPort":
-        MozillaVPN_Background.maybeInitPort();
-        break;
-      case "MozillaVPN_queryServers":
-        MozillaVPN_Background.postToApp("servers");
-        break;
-      case "MozillaVPN_queryStatus":
-        response = MozillaVPN_Background.postToApp("status");
-        break;
-      case "MozillaVPN_getConnectionStatus":
-        response = MozillaVPN_Background.getConnectionStatus();
-        break;
-      case "MozillaVPN_getInstallationStatus":
-        response = MozillaVPN_Background.getInstallationStatus();
         break;
       }
       return response;

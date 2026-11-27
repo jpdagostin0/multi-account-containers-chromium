@@ -1,53 +1,5 @@
 const NUMBER_OF_KEYBOARD_SHORTCUTS = 10;
 
-async function setUpCheckBoxes() {
-  document.querySelectorAll("[data-permission-id]").forEach(async(el) => {
-    const permissionId = el.dataset.permissionId;
-    const permissionEnabled = await browser.permissions.contains({ permissions: [permissionId] });
-    el.checked = !!permissionEnabled;
-  });
-}
-
-function disablePermissionsInputs() {
-  document.querySelectorAll("[data-permission-id").forEach(el => {
-    el.disabled = true;
-  });
-}
-
-function enablePermissionsInputs() {
-  document.querySelectorAll("[data-permission-id").forEach(el => {
-    el.disabled = false;
-  });
-}
-
-document.querySelectorAll("[data-permission-id").forEach(async(el) => {
-  const permissionId = el.dataset.permissionId;
-  el.addEventListener("change", async() => {
-    if (el.checked) {
-      disablePermissionsInputs();
-      const granted = await browser.permissions.request({ permissions: [permissionId] });
-      if (!granted) {
-        el.checked = false;
-        enablePermissionsInputs();
-      }
-      return;
-    }
-    await browser.permissions.remove({ permissions: [permissionId] });
-  });
-});
-
-async function maybeShowPermissionsWarningIcon() {
-  const bothMozillaVpnPermissionsEnabled = await MozillaVPN.bothPermissionsEnabled();
-  const permissionsWarningEl = document.querySelector(".warning-icon");
-  permissionsWarningEl.classList.toggle("show-warning", !bothMozillaVpnPermissionsEnabled);
-}
-
-async function enableDisableSync() {
-  const checkbox = document.querySelector("#syncCheck");
-  await browser.storage.local.set({syncEnabled: !!checkbox.checked});
-  browser.runtime.sendMessage({ method: "resetSync" });
-}
-
 async function enableDisableReplaceTab() {
   const checkbox = document.querySelector("#replaceTabCheck");
   await browser.storage.local.set({replaceTabEnabled: !!checkbox.checked});
@@ -60,11 +12,9 @@ async function changeTheme(event) {
 }
 
 async function setupOptions() {
-  const { syncEnabled } = await browser.storage.local.get("syncEnabled");
   const { replaceTabEnabled } = await browser.storage.local.get("replaceTabEnabled");
   const { currentThemeId } = await browser.storage.local.get("currentThemeId");
 
-  document.querySelector("#syncCheck").checked = !!syncEnabled;
   document.querySelector("#replaceTabCheck").checked = !!replaceTabEnabled;
   document.querySelector("#changeTheme").selectedIndex = currentThemeId;
   setupContainerShortcutSelects();
@@ -111,21 +61,10 @@ function resetOnboarding() {
   browser.storage.local.set({"onboarding-stage": 0});
 }
 
-async function resetPermissionsUi() {
-  await maybeShowPermissionsWarningIcon();
-  await setUpCheckBoxes();
-  enablePermissionsInputs();
-}
-
-browser.permissions.onAdded.addListener(resetPermissionsUi);
-browser.permissions.onRemoved.addListener(resetPermissionsUi);
-
 document.addEventListener("DOMContentLoaded", setupOptions);
-document.querySelector("#syncCheck").addEventListener( "change", enableDisableSync);
 document.querySelector("#replaceTabCheck").addEventListener( "change", enableDisableReplaceTab);
 document.querySelector("#changeTheme").addEventListener( "change", changeTheme);
 
-maybeShowPermissionsWarningIcon();
 for (let i=0; i < NUMBER_OF_KEYBOARD_SHORTCUTS; i++) {
   document.querySelector("#open_container_"+i)
     .addEventListener("change", storeShortcutChoice);
@@ -137,12 +76,6 @@ document.querySelectorAll("[data-btn-id]").forEach(btn => {
     case "reset-onboarding":
       resetOnboarding();
       break;
-    case "moz-vpn-learn-more":
-      browser.tabs.create({
-        url: MozillaVPN.attachUtmParameters("https://support.mozilla.org/kb/protect-your-container-tabs-mozilla-vpn", "options-learn-more")
-      });
-      break;
     }
   });
 });
-resetPermissionsUi();

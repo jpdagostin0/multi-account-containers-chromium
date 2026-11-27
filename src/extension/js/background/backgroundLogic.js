@@ -139,11 +139,6 @@ const backgroundLogic = {
         assignManager.resetBookmarksMenuItem();
         break;
 
-      case "nativeMessaging":
-        await MozillaVPN_Background.removeMozillaVpnProxies();
-        await browser.runtime.reload();
-        break;
-
       case "proxy":
         assignManager.maybeAddProxyListeners();
         break;

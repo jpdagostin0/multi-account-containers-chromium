@@ -99,7 +99,6 @@ window.siteAssociation = {
         neverAsk: assignment ? assignment.neverAsk : false
       },
       undefined, // exemptedTabIds
-      true, // backup
       true // fromFirefox
     );
   },
@@ -112,7 +111,6 @@ window.siteAssociation = {
 
     await assignManager.storageArea.remove(
       siteStoreKey,
-      true, // shouldSync
       true // fromFirefox
     );
   },

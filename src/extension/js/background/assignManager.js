@@ -46,11 +46,6 @@ window.assignManager = {
       return this.getByUrlKey(siteStoreKey);
     },
 
-    async getSyncEnabled() {
-      const { syncEnabled } = await browser.storage.local.get("syncEnabled");
-      return !!syncEnabled;
-    },
-
     async getReplaceTabEnabled() {
       const { replaceTabEnabled } = await browser.storage.local.get("replaceTabEnabled");
       return !!replaceTabEnabled;
@@ -70,8 +65,7 @@ window.assignManager = {
       });
     },
 
-    async set(pageUrlorUrlKey, data, exemptedTabIds, backup = true,
-      fromFirefox = false) {
+    async set(pageUrlorUrlKey, data, exemptedTabIds, fromFirefox = false) {
       const siteStoreKey = this.getSiteStoreKey(pageUrlorUrlKey);
       if (exemptedTabIds) {
         exemptedTabIds.forEach((tabId) => {
@@ -86,14 +80,10 @@ window.assignManager = {
       if (!fromFirefox) {
         await siteAssociation.set(siteStoreKey, data.userContextId);
       }
-      const syncEnabled = await this.getSyncEnabled();
-      if (backup && syncEnabled) {
-        await sync.storageArea.backup({undeleteSiteStoreKey: siteStoreKey});
-      }
       return;
     },
 
-    async remove(pageUrlorUrlKey, shouldSync = true, fromFirefox = false) {
+    async remove(pageUrlorUrlKey, fromFirefox = false) {
       const siteStoreKey = this.getSiteStoreKey(pageUrlorUrlKey);
       const assignment = await this.getByUrlKey(siteStoreKey);
       // When we remove an assignment we should clear all the exemptions
@@ -105,8 +95,6 @@ window.assignManager = {
       if (assignment) {
         await assignManager._maybeRemoveSiteIsolation(assignment.userContextId);
       }
-      const syncEnabled = await this.getSyncEnabled();
-      if (shouldSync && syncEnabled) await sync.storageArea.backup({siteStoreKey});
       return;
     },
 
@@ -220,12 +208,7 @@ window.assignManager = {
       result.proxy.proxyDNS = true;
     }
 
-    if (!result.proxy.mozProxyEnabled) {
-      return result.proxy;
-    }
-
-    // Let's add the isolation key.
-    return [{ ...result.proxy, connectionIsolationKey: "" + MozillaVPN_Background.isolationKey }];
+    return result.proxy;
   },
 
   // Before a request is handled by the browser we decide if we should

@@ -10,7 +10,7 @@ import { highlightingSection } from "./highlighting";
 import { proxiesSection } from "./proxies";
 
 const page = backgroundPage();
-const anchor = document.querySelector(".moz-vpn-proxy-permissions") || document.body.lastElementChild!;
+const anchor = document.querySelector('[data-i18n-message-id="tabBehavior"]')!;
 const sections = [highlightingSection(page.__maccHighlight), proxiesSection(page.__maccProxy)];
 for (const s of sections) anchor.parentNode!.insertBefore(s.node, anchor);
 

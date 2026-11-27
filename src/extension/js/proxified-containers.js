@@ -43,7 +43,7 @@ proxifiedContainers = {
   },
 
   // Parses a proxy description string of the format type://host[:port] or type://username:password@host[:port] (port is optional)
-  parseProxy(proxy_str, mozillaVpnData = null) {
+  parseProxy(proxy_str) {
     const proxyRegexp = /(?<type>(https?)|(socks4?)):\/\/(\b(?<username>[\w-]+):(?<password>[\w-]+)@)?(?<host>((?:\d{1,3}\.){3}\d{1,3}\b)|(\b([\w.-]+)+))(:(?<port>\d+))?/;
     const matches = proxyRegexp.exec(proxy_str);
     if (!matches) {
@@ -60,15 +60,7 @@ proxifiedContainers = {
       delete matches.groups.password;
     }
 
-    if (mozillaVpnData && mozillaVpnData.mozProxyEnabled === undefined) {
-      matches.groups.type = null;
-    }
-
-    if (!mozillaVpnData) {
-      mozillaVpnData = MozillaVPN.getMozillaProxyInfoObj();
-    }
-
-    return {...matches.groups,...mozillaVpnData};
+    return {...matches.groups};
   },
 
   // Deletes the proxy information object for a specified cookieStoreId [useful for cleaning]
