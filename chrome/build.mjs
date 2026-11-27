@@ -116,7 +116,7 @@ fs.cpSync(path.join(here, "icons"), path.join(out, "icons"), { recursive: true }
 // too; bake in a dark fill (the dark theme already inverts these icons).
 fs.appendFileSync(path.join(out, "css", "popup.css"), fs.readFileSync(path.join(here, "css", "chromium.css")));
 fs.appendFileSync(path.join(out, "css", "options.css"), fs.readFileSync(path.join(here, "css", "options.css")));
-for (const f of ["newtab.css", "history.css"]) fs.copyFileSync(path.join(here, "css", f), path.join(out, "css", f));
+for (const f of ["newtab.css", "history.css", "history-rows.css"]) fs.copyFileSync(path.join(here, "css", f), path.join(out, "css", f));
 for (const f of fs.readdirSync(path.join(out, "img"), { recursive: true })) {
   if (!String(f).endsWith(".svg")) continue;
   const file = path.join(out, "img", String(f));

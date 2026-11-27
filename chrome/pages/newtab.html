@@ -7,15 +7,27 @@
   <meta charset="utf-8">
   <title>New Tab</title>
   <link rel="stylesheet" href="css/newtab.css">
+  <link rel="stylesheet" href="css/history-rows.css">
 </head>
 <body>
+  <button id="history-toggle" type="button" aria-controls="history-drawer" aria-expanded="false"><span class="clock"></span>History</button>
   <main>
-    <a id="history-link" href="history.html">History</a>
     <form id="search">
       <input id="q" type="search" placeholder="Search the web" autocomplete="off" spellcheck="false">
     </form>
     <div id="sections"></div>
   </main>
+  <aside id="history-drawer" aria-label="History">
+    <div class="drawer-head">
+      <a class="full-history" href="history.html" title="Open the full history page">All history</a>
+      <button class="close" type="button" title="Close">×</button>
+    </div>
+    <div class="drawer-body">
+      <div class="list"></div>
+      <p class="empty" hidden>No history here yet.</p>
+      <div class="sentinel"></div>
+    </div>
+  </aside>
   <template id="section-tpl">
     <section class="container-section">
       <h2><span class="ident-icon"></span><span class="name"></span><span class="here">this tab</span></h2>
@@ -31,6 +43,15 @@
       </a>
       <button class="hide" title="Remove from this list">×</button>
     </li>
+  </template>
+  <template id="row-tpl">
+    <div class="row">
+      <time></time>
+      <span class="favicon"></span>
+      <a class="text"><span class="title"></span><span class="host"></span></a>
+      <span class="badge"></span>
+      <button class="del" title="Remove from history">×</button>
+    </div>
   </template>
   <script type="module" src="js/chrome/newtab.js"></script>
 </body>

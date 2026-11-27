@@ -324,6 +324,28 @@ async function session(c, { withErrors = true } = {}) {
     const ntpShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-newtab.png"), Buffer.from(ntpShot.data, "base64"));
     check("container new tab puts its own container first", (await P(ntpWs, `document.querySelector("section.current .name").textContent`)) === "Work");
+    // history drawer
+    await P(ntpWs, `document.getElementById("history-toggle").click()`);
+    await sleep(700);
+    const drawer = await P(ntpWs, `(() => { const d = document.getElementById("history-drawer").getBoundingClientRect();
+      const m = document.querySelector("main").getBoundingClientRect();
+      return { left: d.left, width: d.width, mainRight: m.right, picker: document.querySelector(".picker-button .name").textContent,
+        badges: [...document.querySelectorAll("#history-drawer .row .title")].length }; })()`);
+    check("history drawer slides in at ~30% width beside the shrunk page", drawer.width >= 330 && drawer.width <= 345 && drawer.left + drawer.width <= 1101
+      && drawer.mainRight <= drawer.left + 1 && drawer.picker === "Work" && drawer.badges > 0, drawer);
+    const drawerShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-drawer.png"), Buffer.from(drawerShot.data, "base64"));
+    await P(ntpWs, `document.querySelector(".picker-button").click()`);
+    await sleep(300);
+    const pickerShot = await c.send("Page.captureScreenshot", { format: "png" }, ntpWs);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-picker.png"), Buffer.from(pickerShot.data, "base64"));
+    await P(ntpWs, `document.querySelector('.picker-list li[data-n="all"]').click()`);
+    await sleep(500);
+    const allBadges = await P(ntpWs, `[...new Set([...document.querySelectorAll("#history-drawer .row .badge")].map(b => b.textContent))]`);
+    check("history drawer dropdown switches to all containers", allBadges.length > 1 && allBadges.includes("Work"), allBadges);
+    await P(ntpWs, `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+    await sleep(600);
+    check("Escape closes the history drawer", (await P(ntpWs, `getComputedStyle(document.getElementById("history-drawer")).visibility`)) === "hidden");
     await B(`browser.tabs.remove(${ntpWork})`);
 
     // -------------------------------------------------------------------------

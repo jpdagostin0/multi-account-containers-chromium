@@ -8,20 +8,23 @@ import { DEFAULT, idOf } from "../../lib/constants";
 import { ff } from "../../lib/ff";
 import { backgroundPage } from "../background";
 import { listContainers } from "../containers";
+import { setUpHistoryDrawer } from "./history-drawer";
 import { setUpSearch } from "./search";
 import { section } from "./sections";
 
-const top = backgroundPage().__maccTopSites;
+const page = backgroundPage();
+const top = page.__maccTopSites;
 const me = await ff().tabs.getCurrent();
 const myN = idOf(me?.cookieStoreId ?? DEFAULT);
 
 // This tab's container first, then the rest in the panel's order.
-const sections = (await listContainers()).sort((a, b) => Number(b.n === myN) - Number(a.n === myN));
+const containers = await listContainers();
+const sections = [...containers].sort((a, b) => Number(b.n === myN) - Number(a.n === myN));
 const mine = sections.find((s) => s.n === myN);
 if (mine?.color) document.documentElement.style.setProperty("--accent", mine.color);
 
 setUpSearch(me.id!, mine, top);
-if (myN) (document.getElementById("history-link") as HTMLAnchorElement).href = `history.html?container=${myN}`;
+setUpHistoryDrawer(containers, myN, me.id!, page.__maccHistory, top);
 
 const lists = await top.list(16);
 const root = document.getElementById("sections")!;

@@ -4,7 +4,7 @@
 
 // The container filter buttons.
 
-import type { Container } from "../containers";
+import { identIcon, type Container } from "../containers";
 
 export function filterButtons(
   containers: Container[],
@@ -15,12 +15,8 @@ export function filterButtons(
   const item = (n: number | null, name: string, c: Container | null) => {
     const b = document.createElement("button");
     b.dataset.n = n === null ? "all" : String(n);
-    const icon = document.createElement("span");
-    icon.className = "ident-icon";
     if (c?.color) b.style.setProperty("--c", c.color);
-    if (c?.icon) icon.style.setProperty("--icon", `url("${c.icon}")`);
-    if (n === null) icon.style.setProperty("--icon", 'url("/img/multiaccountcontainer-16.svg")');
-    b.append(icon, name);
+    b.append(identIcon(c), name);
     b.addEventListener("click", () => onSelect(n));
     nav.append(b);
   };

@@ -42,6 +42,15 @@ export function openInBackground(url: string, csid: string, extra: Record<string
   ff().tabs.create({ url, cookieStoreId: csid, active: false, ...extra });
 }
 
+/** A container's icon in its color (`null`: the "All containers" icon). Set `--c` on an ancestor for the color. */
+export function identIcon(c: Container | null): HTMLSpanElement {
+  const icon = document.createElement("span");
+  icon.className = "ident-icon";
+  const url = c ? c.icon : "/img/multiaccountcontainer-16.svg";
+  if (url) icon.style.setProperty("--icon", `url("${url}")`);
+  return icon;
+}
+
 /** The template's first element, cloned. */
 export const cloneTemplate = <T extends HTMLElement = HTMLElement>(id: string): T =>
   (document.getElementById(id) as HTMLTemplateElement).content.firstElementChild!.cloneNode(true) as T;
