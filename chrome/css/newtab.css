@@ -213,3 +213,17 @@ main {
 .tiles:not(:empty) + .empty {
   display: none;
 }
+
+#history-link {
+  color: var(--muted);
+  font-size: 13px;
+  position: fixed;
+  inset-block-start: 16px;
+  inset-inline-end: 20px;
+  text-decoration: none;
+}
+
+#history-link:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}

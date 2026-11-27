@@ -327,6 +327,39 @@ async function session(c, { withErrors = true } = {}) {
     await B(`browser.tabs.remove(${ntpWork})`);
 
     // -------------------------------------------------------------------------
+    // per-container history + saved favicons
+    // -------------------------------------------------------------------------
+    const hq = (q) => B(`__maccHistory.query(${JSON.stringify(q)}).then(l => l.map(v => [v.n, v.url, v.title, !!v.icon]))`);
+    const h2 = await hq({ n: 2 });
+    check("history records container visits", h2.some(([n, u]) => n === 2 && u === `${ORIGIN}/set?n=sid&v=work`), h2.slice(0, 5));
+    check("history keeps no-container visits separately", (await hq({ n: 0 })).some(([, u]) => u === `${ORIGIN}/set?n=sid&v=default`)
+      && !h2.some(([, u]) => u === `${ORIGIN}/set?n=sid&v=default`));
+    check("removed container's history is gone", (await hq({ n: 3 })).length === 0 && !(await hq({})).some(([n]) => n === 3));
+    check("history entries carry titles and saved icons", h2.some(([, , t, i]) => t === "macc test" && i), h2.slice(0, 3));
+    const spaTab = await B(`browser.tabs.create({cookieStoreId: "firefox-container-2", url: "${ORIGIN}/page?spa=0"}).then(t => t.id)`);
+    const spa = await pageSession("spa=0");
+    await P(spa, "history.pushState({}, '', '/page?spa=1')");
+    await sleep(500);
+    check("single-page-app navigations are recorded", (await hq({ n: 2, text: "spa=1" })).length === 1);
+    check("history search", (await hq({ n: 2, text: "csp" })).every(([, u]) => u.includes("csp")) && (await hq({ n: 2, text: "csp" })).length > 0);
+    const icon = await B(`__maccHistory.iconsFor(["${ORIGIN}"]).then(x => x["${ORIGIN}"] || null)`);
+    check("favicon saved for the site", typeof icon === "string" && icon.startsWith("data:image/png"));
+    await B(`browser.tabs.update(${spaTab}, {url: "chrome-extension://${extId}/history.html?container=2"})`);
+    await settle();
+    const hp = await pageSession("history.html");
+    await sleep(600);
+    const hrows = await P(hp, `[...document.querySelectorAll(".row")].map(r => r.querySelector(".badge").textContent)`);
+    check("history page filtered to the container", hrows.length > 0 && hrows.every((b) => b === "Work"), hrows);
+    check("history page shows saved icons", await P(hp, `[...document.querySelectorAll(".row .favicon")].some(f => f.style.backgroundImage.includes("data:image"))`));
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 700, deviceScaleFactor: 1, mobile: false }, hp);
+    await sleep(300);
+    const hshot = await c.send("Page.captureScreenshot", { format: "png" }, hp);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-history.png"), Buffer.from(hshot.data, "base64"));
+    await B(`__maccHistory.clear(2)`);
+    check("clearing a container's history", (await hq({ n: 2 })).length === 0 && (await hq({ n: 0 })).length > 0);
+    await B(`browser.tabs.remove(${spaTab})`);
+
+    // -------------------------------------------------------------------------
     // per-container proxies
     // -------------------------------------------------------------------------
     await B(`browser.storage.local.set({proxifiedContainersKey: [

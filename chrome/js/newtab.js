@@ -40,6 +40,7 @@
     }
   });
   q.focus();
+  if (myN) document.getElementById("history-link").href = `history.html?container=${myN}`;
 
   // ---- sections ------------------------------------------------------------
   const lists = await top.list(16);

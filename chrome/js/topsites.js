@@ -8,22 +8,18 @@
 // counted here per container: every committed top-level http(s) navigation
 // bumps a frecency score (visits decayed by age) for its page in the tab's
 // container. "No container" starts out seeded from chrome.topSites, minus
-// sites we've seen in containers. Site icons are kept as small data URLs,
-// fetched without cookies.
+// sites we've seen in containers. Site icons come from history.js.
 (() => {
   "use strict";
 
   const iso = globalThis.__maccIso;
   const { base, IDENT_KEY } = globalThis.__maccCompat;
   const KEY = "__macc_topsites";
-  const ICONS = "__macc_site_icons";
   const HALF_LIFE_DAYS = 14;
   const PER_CONTAINER = 60;
-  const MAX_ICONS = 400;
   const SKIP_TRANSITIONS = new Set(["auto_subframe", "manual_subframe", "reload", "form_submit"]);
 
   let data = null;  // { "<n>": { "<url>": {title, score, last, hidden?} } }
-  let icons = null; // { "<origin>": dataURL }
   let saveTimer = null;
 
   const decay = (score, last, now) => score * Math.pow(0.5, (now - last) / (HALF_LIFE_DAYS * 864e5));
@@ -43,9 +39,8 @@
   function load() {
     if (!loading) {
       loading = (async () => {
-        const all = await base.storage.local.get([KEY, ICONS]);
+        const all = await base.storage.local.get(KEY);
         data = all[KEY] || {};
-        icons = all[ICONS] || {};
         if (!all[KEY]) await seedDefault();
       })();
     }
@@ -56,7 +51,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       prune();
-      base.storage.local.set({ [KEY]: data, [ICONS]: icons });
+      base.storage.local.set({ [KEY]: data });
     }, 1000);
   }
 
@@ -67,11 +62,6 @@
       if (entries.length <= PER_CONTAINER) continue;
       entries.sort(([, a], [, b]) => decay(b.score, b.last, now) - decay(a.score, a.last, now));
       data[n] = Object.fromEntries(entries.slice(0, PER_CONTAINER));
-    }
-    const origins = Object.keys(icons);
-    if (origins.length > MAX_ICONS) {
-      const used = new Set(Object.values(data).flatMap((m) => Object.keys(m).map((u) => new URL(u).origin)));
-      for (const o of origins) if (!used.has(o)) delete icons[o];
     }
   }
 
@@ -126,21 +116,6 @@
     load().then(() => setTitle(iso.containerOf(tabId), tab.url, info.title));
   });
 
-  // Plain (unmarked) site icons, from the favicon requests pages make.
-  chrome.runtime.onMessage.addListener((msg, sender) => {
-    if (!msg || msg.__macc !== "favicon" || !sender.tab || !msg.href) return;
-    let origin;
-    try { origin = new URL(sender.tab.url).origin; } catch { return; }
-    load().then(async () => {
-      if (icons[origin]) return;
-      const url = await globalThis.__maccHighlight.plainIcon(msg.href);
-      if (url) {
-        icons[origin] = url;
-        save();
-      }
-    });
-  });
-
   globalThis.__maccTopSites = {
     async list(limit = 12) {
       await load();
@@ -150,9 +125,16 @@
         if (n !== "0" && !iso.identityExists(Number(n))) continue;
         out[n] = Object.entries(bucket)
           .filter(([, e]) => !e.hidden)
-          .map(([url, e]) => ({ url, title: e.title, score: decay(e.score, e.last, now), icon: icons[new URL(url).origin] || null }))
+          .map(([url, e]) => ({ url, title: e.title, score: decay(e.score, e.last, now) }))
           .sort((a, b) => b.score - a.score)
           .slice(0, limit);
+      }
+      const origins = [...new Set(Object.values(out).flat().map((t) => new URL(t.url).origin))];
+      const icons = await globalThis.__maccHistory.iconsFor(origins);
+      Object.values(out).flat().forEach((t) => { t.icon = icons[new URL(t.url).origin] || null; });
+      // Fetch icons for tiles that don't have one yet (e.g. seeded sites).
+      for (const o of origins.filter((x) => !icons[x])) {
+        globalThis.__maccHistory.saveIcon(o, `${o}/favicon.ico`).catch(() => {});
       }
       return out;
     },

@@ -95,8 +95,28 @@ container, plus **No container**, with the tab's own container first.
   tab.
 - **How visits are counted:** Chromium's history is shared by all containers,
   so the extension counts visits per container itself. "No container" starts
-  out seeded from Chromium's top sites. Site icons are stored without
-  cookies.
+  out seeded from Chromium's top sites.
+- **History link:** the **History** link at the top right opens the
+  per-container history.
+
+## Per-container history
+
+Chromium keeps one history for everything, so the extension also keeps its
+own, with the container of every visit. That includes in-page navigations of
+single-page apps.
+
+- **Opening it:** use **History by container** in the toolbar button's
+  right-click menu, or the **History** link on the new tab page.
+- **Filtering and opening:** filter by container, including **No container**,
+  and search titles and URLs. A click opens the page in the container it was
+  visited in.
+- **Removing entries:** delete single entries, or clear one container's
+  history. Chromium's own history isn't touched.
+- **Retention:** entries are kept for 90 days. Removing a container removes its
+  history.
+- **Favicons:** site icons are saved in the extension's database, one per
+  origin, refreshed weekly and fetched without cookies. The new tab and
+  history pages use them.
 
 Chromium asks once whether to keep the changed new tab page; choose **Keep
 it**.
