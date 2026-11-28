@@ -514,17 +514,23 @@ body {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.drawer-head .close {
+/* #settings-drawer.settings would give it the settings' button look; not here. */
+.drawer-head .close,
+.settings .drawer-head .close {
   background: none;
   border: 0;
   block-size: 28px;
   color: var(--muted);
   cursor: pointer;
+  display: grid;
   flex: none;
+  font: inherit;
   font-size: 18px;
   inline-size: 28px;
   line-height: 1;
   margin-inline-start: auto;
+  padding: 0;
+  place-items: center;
 }
 
 .drawer-tools {

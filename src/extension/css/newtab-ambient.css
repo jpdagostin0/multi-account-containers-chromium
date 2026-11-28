@@ -55,23 +55,16 @@
 
 #weather {
   align-items: center;
-  background: none;
-  border: 0;
   color: var(--fg);
-  cursor: pointer;
+  cursor: default;
   display: flex;
-  font: inherit;
   gap: 10px;
   padding: 6px 12px 6px 10px;
-  text-align: start;
   transition: background-color 150ms;
 }
 
-#weather:hover,
-#weather:focus-visible,
 #weather-box:hover #weather {
   background: var(--tile-hover);
-  outline: none;
 }
 
 #weather.unset {
@@ -132,8 +125,7 @@
   display: none;
 }
 
-#weather-box:hover #forecast,
-#weather-box:focus-within #forecast {
+#weather-box:hover #forecast {
   opacity: 1;
   transform: none;
   transition: opacity 150ms ease, transform 200ms var(--drawer-ease), visibility 0s;
@@ -213,7 +205,6 @@
 .has-wallpaper #container-tabs button:not([aria-current="true"]):hover,
 .has-wallpaper #history-toggle:hover,
 .has-wallpaper #settings-toggle:hover,
-.has-wallpaper #weather:hover,
 .has-wallpaper #weather-box:hover #weather {
   background: var(--tile-hover);
 }

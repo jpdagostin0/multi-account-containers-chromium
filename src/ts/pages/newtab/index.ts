@@ -18,7 +18,7 @@ import { section } from "./sections";
 
 const page = backgroundPage();
 // First, so the wallpaper is up before the rest of the page.
-setUpAmbient(page.__maccWeather, page.__maccWallpaper, (section) => openSettings(section));
+setUpAmbient(page.__maccWeather, page.__maccWallpaper);
 const top = page.__maccTopSites;
 const me = await ff().tabs.getCurrent();
 const myN = idOf(me?.cookieStoreId ?? DEFAULT);

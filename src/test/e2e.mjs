@@ -385,6 +385,9 @@ async function session(c, { withErrors = true } = {}) {
     check("settings drawer slides in from the left at about 30% width, page shrinks", sd[0] === 0 && sd[1] >= 28 && sd[1] <= 32 && sd[2]
       && sd[3] === "Search engine|Colors|Weather|Wallpaper|Container highlighting|Tabs|Keyboard shortcuts|Introduction", sd);
     check("settings drawer sits under the container tabs, which stay usable", sd[4] === true, sd);
+    const closes = await P(dNtp, `["settings-drawer", "history-drawer"].map(id => { const b = document.querySelector("#" + id + " .close"), s = getComputedStyle(b);
+      return [s.paddingTop, s.paddingLeft, s.borderTopWidth, s.display, s.placeItems, Math.round(b.getBoundingClientRect().width)].join(" "); })`);
+    check("the drawers' close buttons look the same (×  centered)", closes[0] === closes[1] && closes[0].startsWith("0px 0px 0px grid center"), closes);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-settings-drawer.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, dNtp)).data, "base64"));
     await P(dNtp, `document.getElementById("history-toggle").click()`);
@@ -594,6 +597,7 @@ async function session(c, { withErrors = true } = {}) {
     await sleep(1200);
     const wLine = await P(wNtp, `(() => { const w = document.getElementById("weather"), q = document.getElementById("q").getBoundingClientRect(), b = w.getBoundingClientRect();
       return [document.getElementById("weather-box").hidden, w.textContent, Math.round(q.top - b.bottom), Math.round(b.left - q.left), document.documentElement.dataset.effect]; })()`);
+    check("the weather is nothing to click", await P(wNtp, `document.getElementById("weather").tagName === "DIV" && getComputedStyle(document.getElementById("weather")).cursor === "default"`));
     check("weather sits over the search box", !wLine[0] && wLine[1].startsWith("12°Rain") && wLine[1].includes("Testville") && wLine[2] >= 0 && wLine[2] < 30 && wLine[3] === 0, wLine);
     const fcHidden = await P(wNtp, `getComputedStyle(document.getElementById("forecast")).visibility`);
     const wBox = await P(wNtp, `(() => { const b = document.getElementById("weather").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);

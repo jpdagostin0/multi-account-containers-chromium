@@ -3,7 +3,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // The current weather, over the search box; hovering it shows the next five
-// hours and three days. Clicking it opens its settings.
+// hours and three days. Nothing to click: it's set up in the settings drawer.
 
 import type { Weather, WeatherSettings } from "../../background/weather";
 import { condition } from "../../background/weather/conditions";
@@ -51,12 +51,13 @@ export function renderWeather(s: WeatherSettings, w: Weather | null, failed: boo
   const box = document.getElementById("weather-box")!;
   const a = document.getElementById("weather")!;
   const panel = document.getElementById("forecast")!;
-  box.hidden = !s.show;
+  // Without a place there's nothing to show.
+  box.hidden = !s.show || (!w && !failed);
   a.classList.toggle("unset", !w);
-  if (!s.show) return;
+  if (box.hidden) return;
   if (!w) {
-    a.title = "Weather settings";
-    a.replaceChildren(span("w-label", failed ? "Weather unavailable" : "Set up weather"));
+    a.title = "";
+    a.replaceChildren(span("w-label", "Weather unavailable"));
     panel.replaceChildren();
     return;
   }

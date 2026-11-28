@@ -22,7 +22,7 @@ function sceneSpec(wp: Wallpaper, s: WeatherSettings, w: Weather | null): SceneS
   return { effect, density, sky, isDay };
 }
 
-export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi, openSettings: (section: string) => void): void {
+export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi): void {
   const root = document.documentElement;
   const image = document.getElementById("wallpaper")!;
   const dim = document.getElementById("wallpaper-dim")!;
@@ -52,7 +52,6 @@ export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi, openS
   }
 
 
-  document.getElementById("weather")!.addEventListener("click", () => openSettings("weather-settings"));
   update();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && (changes[weather.storageKey] || changes[wallpaper.storageKey])) update();
