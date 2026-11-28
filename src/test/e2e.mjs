@@ -599,14 +599,17 @@ async function session(c, { withErrors = true } = {}) {
       return [document.getElementById("weather-box").hidden, w.textContent, Math.round(q.top - b.bottom), Math.round(b.left - q.left), document.documentElement.dataset.effect]; })()`);
     check("the weather is nothing to click", await P(wNtp, `document.getElementById("weather").tagName === "DIV" && getComputedStyle(document.getElementById("weather")).cursor === "default"`));
     check("weather sits over the search box", !wLine[0] && wLine[1].startsWith("12°Rain") && wLine[1].includes("Testville") && wLine[2] >= 0 && wLine[2] < 30 && wLine[3] === 0, wLine);
-    const fcHidden = await P(wNtp, `getComputedStyle(document.getElementById("forecast")).visibility`);
+    const fcHidden = await P(wNtp, `document.getElementById("forecast").getBoundingClientRect().width`);
     const wBox = await P(wNtp, `(() => { const b = document.getElementById("weather").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
     await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: wBox[0], y: wBox[1] }, wNtp);
     await sleep(400);
     const fc = await P(wNtp, `(() => { const f = document.getElementById("forecast"), rows = [...f.querySelectorAll(".f-row")];
-      return [getComputedStyle(f).visibility, rows.map(r => [r.querySelector(".f-title").textContent, r.querySelectorAll(".f-cell").length]),
+      const fr = f.getBoundingClientRect(), wr = document.getElementById("weather").getBoundingClientRect(), sr = document.getElementById("search").getBoundingClientRect();
+      // Inline: right after the current weather, same strip, not over the search box.
+      return [fr.width > 300 && Math.round(fr.left) === Math.round(wr.right) && Math.round(fr.top) === Math.round(wr.top) && fr.bottom <= sr.top ? "inline" : [fr.width, fr.left, wr.right, fr.top, wr.top, fr.bottom, sr.top].map(Math.round).join(),
+        rows.map(r => [r.getAttribute("aria-label"), r.querySelectorAll(".f-cell").length]),
         [...f.querySelectorAll(".days .f-cell")].map(c => c.textContent), [...f.querySelectorAll(".hours .w-temp")].map(c => c.textContent)]; })()`);
-    check("hovering the weather shows a 5 hour and 3 day forecast", fcHidden === "hidden" && fc[0] === "visible"
+    check("hovering the weather slides a 5 hour and 3 day forecast out to its right, inline", fcHidden === 0 && fc[0] === "inline"
       && JSON.stringify(fc[1]) === JSON.stringify([["Next hours", 5], ["Next days", 3]]) && fc[2][0] === "Today14°5°Rain" && fc[3].join() === "11°,12°,13°,14°,15°", fc);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-forecast.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));

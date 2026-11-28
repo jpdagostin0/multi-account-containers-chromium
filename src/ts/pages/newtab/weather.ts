@@ -2,8 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// The current weather, over the search box; hovering it shows the next five
-// hours and three days. Nothing to click: it's set up in the settings drawer.
+// The current weather, over the search box; hovering it slides the next five
+// hours and three days out to its right. Nothing to click: it's set up in the
+// settings drawer.
 
 import type { Weather, WeatherSettings } from "../../background/weather";
 import { condition } from "../../background/weather/conditions";
@@ -37,8 +38,8 @@ function forecastRows(w: Weather): HTMLElement[] {
   const days = r.daily.filter((d) => d.date >= now.slice(0, 10)).slice(0, DAYS);
   const row = (className: string, title: string, cells: HTMLElement[]) => {
     const node = Object.assign(document.createElement("div"), { className: `f-row ${className}` });
-    node.style.setProperty("--n", String(cells.length));
-    node.append(span("f-title", title), ...cells);
+    node.setAttribute("aria-label", title);
+    node.append(...cells);
     return node;
   };
   return [
