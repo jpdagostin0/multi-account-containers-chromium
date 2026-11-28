@@ -663,6 +663,17 @@ async function session(c, { withErrors = true } = {}) {
     check("no wallpaper, effects off, weather hidden: the plain page", plain[0] && plain[1] && plain[2] && !plain[3], plain);
     await B(`browser.tabs.remove(${wTab})`);
     await c.send("Fetch.disable", {}, bg);
+
+    // A background page still on an older build: the next new tab reloads the extension.
+    // (Extensions loaded over CDP don't come back from a reload, so this checks it went away; it must stay last.)
+    await B(`(globalThis.__maccBuild = "older", 1)`);
+    await B(`browser.tabs.create({}).then(() => 1)`).catch(() => {});
+    let reloaded = false;
+    for (let i = 0; i < 40 && !reloaded; i++) {
+      await sleep(250);
+      reloaded = !(await c.targets()).some((x) => x.url.endsWith("/js/background/index.html"));
+    }
+    check("a new tab reloads a background page left on an older build", reloaded);
   } catch (e) {
     failed++;
     console.error("ERROR", e.message);

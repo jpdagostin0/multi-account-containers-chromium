@@ -27,6 +27,8 @@ export interface BackgroundGlobals {
   __maccSearch: SearchApi;
   __maccWeather: WeatherApi;
   __maccWallpaper: WallpaperApi;
+  /** The build the background page runs (__MACC_BUILD__). */
+  __maccBuild?: string;
   __maccCompat: CompatApi;
 }
 export type BackgroundWindow = Window & BackgroundGlobals;
@@ -42,6 +44,9 @@ declare global {
   var __maccSearch: SearchApi;
   var __maccWeather: WeatherApi;
   var __maccWallpaper: WallpaperApi;
+  var __maccBuild: string | undefined;
+  /** Set at build time (build.mjs). */
+  const __MACC_BUILD__: string;
   /** Upstream background (js/background/assignManager.js). */
   var assignManager: { storageArea: { isExempted(url: string, tabId: number): boolean } } | undefined;
 

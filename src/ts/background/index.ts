@@ -26,3 +26,4 @@ globalThis.__maccTheme = theme;
 globalThis.__maccSearch = search;
 globalThis.__maccWeather = weather;
 globalThis.__maccWallpaper = wallpaper;
+globalThis.__maccBuild = __MACC_BUILD__;

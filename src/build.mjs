@@ -87,6 +87,10 @@ const scriptImports = {
   },
 };
 
+// Stamped into the background page and the new tab page, so a page can tell
+// that the (persistent) background page still runs an older build.
+const BUILD = String(Date.now());
+
 const bundles = [
   // [entry, output, format]
   ["compat/index.ts", "compat.js", "iife"],
@@ -104,6 +108,7 @@ await Promise.all(bundles.map(([entry, file, format]) => esbuild.build({
   target: TARGET,
   legalComments: "none",
   plugins: [scriptImports],
+  define: { __MACC_BUILD__: JSON.stringify(BUILD) },
   logLevel: "warning",
 })));
 

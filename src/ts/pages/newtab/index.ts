@@ -17,6 +17,17 @@ import { setUpSuggestions } from "./suggestions";
 import { section } from "./sections";
 
 const page = backgroundPage();
+// Pages load the newest build from disk, but the background page keeps
+// running the build it started with until the extension reloads. Reload it
+// once when they differ (open new tabs come back with the new build).
+if (page.__maccBuild !== __MACC_BUILD__) {
+  const tried = localStorage.getItem("maccReloadedFor");
+  if (tried !== __MACC_BUILD__) {
+    localStorage.setItem("maccReloadedFor", __MACC_BUILD__);
+    chrome.runtime.reload();
+    await new Promise(() => {});
+  }
+}
 // First, so the wallpaper is up before the rest of the page.
 setUpAmbient(page.__maccWeather, page.__maccWallpaper);
 const top = page.__maccTopSites;
