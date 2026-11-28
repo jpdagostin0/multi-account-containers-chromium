@@ -29,8 +29,10 @@ function cell(when: string, temp: string, label: string, low?: string): HTMLElem
 
 function forecastRows(w: Weather): HTMLElement[] {
   const { reading: r } = w;
+  // A background page still running an older version sends readings without forecasts.
+  if (!Array.isArray(r.hourly) || !Array.isArray(r.daily)) return [];
   // The place's clock now ("2026-11-27T18…"), so an hour-old reading still starts at the next hour.
-  const now = new Date(Date.now() + r.utcOffset * 1000).toISOString();
+  const now = new Date(Date.now() + (r.utcOffset || 0) * 1000).toISOString();
   const hours = r.hourly.filter((h) => h.time.slice(0, 13) > now.slice(0, 13)).slice(0, HOURS);
   const days = r.daily.filter((d) => d.date >= now.slice(0, 10)).slice(0, DAYS);
   const row = (className: string, title: string, cells: HTMLElement[]) => {
