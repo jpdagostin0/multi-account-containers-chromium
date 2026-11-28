@@ -603,11 +603,11 @@ async function session(c, { withErrors = true } = {}) {
     check("the page column is 1000px wide (search box and tiles alike)", mWide.join() === "1000,1000", mWide);
     const fcHidden = await P(wNtp, `document.getElementById("forecast").getBoundingClientRect().width`);
     const clockAt = () => P(wNtp, `(() => { const k = document.getElementById("clock"), kb = k.getBoundingClientRect(), b = document.getElementById("weather-box").getBoundingClientRect();
-      return [Math.round(b.width), Math.round(b.right - kb.right), k.querySelector(".c-time").textContent, k.querySelector(".c-date").textContent]; })()`);
+      return [Math.round(b.right), Math.round(kb.left - b.right), Math.round(kb.top - b.top), k.parentElement === document.getElementById("weather-box"), k.querySelector(".c-time").textContent, k.querySelector(".c-date").textContent]; })()`);
     const clock0 = await clockAt();
     const today = new Date().toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-    check("a clock with today's date sits at the far right of the weather strip, which is 3/4 of the search box",
-      clock0[0] === 750 && clock0[1] === 0 && /^\d{1,2}:\d\d/.test(clock0[2]) && clock0[3] === today, [clock0, today]);
+    check("a clock with today's date is its own widget, right next to the weather",
+      clock0[1] === 8 && clock0[2] === 0 && !clock0[3] && /^\d{1,2}:\d\d/.test(clock0[4]) && clock0[5] === today, [clock0, today]);
     const wText = () => P(wNtp, `(() => { const t = document.querySelector("#weather .w-text"); return [Math.round(t.getBoundingClientRect().width), getComputedStyle(t).opacity]; })()`);
     const wText0 = await wText();
     const wBox = await P(wNtp, `(() => { const b = document.getElementById("weather").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
@@ -629,13 +629,13 @@ async function session(c, { withErrors = true } = {}) {
       return [Math.round(b.width), Math.round(document.getElementById("q").getBoundingClientRect().width * 0.75), f.scrollWidth > f.clientWidth, Math.round(f.scrollLeft), f.className]; })()`);
     const wText1 = await wText();
     const clock1 = await clockAt();
-    check("hovering keeps the strip's size and the clock in place", clock1[0] === clock0[0] && clock1[1] === 0, [clock0, clock1]);
+    check("hovering the weather pushes the clock to the right", clock1[0] > clock0[0] + 300 && clock1[1] === 8, [clock0, clock1]);
     check("hovering folds the current weather's detail away (temperature and icon stay)", wText0[0] > 50 && wText0[1] === "1" && wText1[0] === 0 && wText1[1] === "0", [wText0, wText1]);
     const fs0 = await fcScroll();
     await c.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: wBox[0] + 300, y: wBox[1], deltaX: 0, deltaY: 120 }, wNtp);
     await sleep(400);
     const fs1 = await fcScroll();
-    check("the strip is 3/4 of the search box's width and the forecast scrolls inside it (the wheel too), fading the side with more",
+    check("the weather stops at 3/4 of the search box's width and the forecast scrolls inside it (the wheel too), fading the side with more",
       fs0[0] === fs0[1] && fs0[2] && fs0[3] === 0 && fs0[4] === "more-end" && fs1[3] > 0 && fs1[4].split(" ").includes("more-start"), [fs0, fs1]);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-forecast.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));

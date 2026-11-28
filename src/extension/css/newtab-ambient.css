@@ -50,15 +50,23 @@
   from { opacity: 0; }
 }
 
-/* The weather, over the search box: a strip three quarters of its width,
-   with the clock at the far end. Hovering slides the forecast out between
-   them (nothing pops up over the page); it scrolls when it doesn't fit. */
+/* The weather and the clock, side by side over the search box. Hovering the
+   weather slides its forecast out to the right, pushing the clock along
+   (nothing pops up over the page); past three quarters of the search box's
+   width the forecast scrolls. */
+#widgets {
+  align-items: stretch;
+  display: flex;
+  gap: 8px;
+  margin-block-end: 12px;
+}
+
 #weather-box {
   align-items: stretch;
   box-sizing: border-box;
   display: flex;
-  inline-size: 75%;
-  margin-block-end: 12px;
+  max-inline-size: 75%;
+  min-inline-size: 0;
   transition: background-color 150ms;
 }
 
@@ -147,7 +155,6 @@
   flex-direction: column;
   gap: 1px;
   justify-content: center;
-  margin-inline-start: auto;
   padding: 6px 12px;
   white-space: nowrap;
 }
@@ -240,7 +247,8 @@
 .has-wallpaper #container-tabs button:not([aria-current="true"]),
 .has-wallpaper #history-toggle,
 .has-wallpaper #settings-toggle,
-.has-wallpaper #weather-box {
+.has-wallpaper #weather-box,
+.has-wallpaper #clock {
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   background: color-mix(in srgb, var(--tile) 84%, transparent);
