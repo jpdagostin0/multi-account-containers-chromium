@@ -82,6 +82,13 @@
   line-height: 1;
 }
 
+.w-icon {
+  block-size: 26px;
+  flex: none;
+  inline-size: 26px;
+  stroke-width: 1.75;
+}
+
 .w-text {
   display: flex;
   flex-direction: column;
@@ -124,7 +131,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  inline-size: 74px;
+  inline-size: 84px;
   justify-content: center;
   padding: 6px 10px;
 }
@@ -139,6 +146,13 @@
   align-items: baseline;
   display: flex;
   gap: 4px;
+}
+
+.f-temps .w-icon {
+  align-self: center;
+  block-size: 16px;
+  inline-size: 16px;
+  stroke-width: 2;
 }
 
 .f-cell .w-temp {

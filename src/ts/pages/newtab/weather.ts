@@ -8,6 +8,7 @@
 
 import type { Weather, WeatherSettings } from "../../background/weather";
 import { condition } from "../../background/weather/conditions";
+import { weatherIcon } from "./weather-icons";
 
 const HOURS = 5, DAYS = 3;
 
@@ -20,10 +21,11 @@ const asUtc = (iso: string) => new Date(`${iso.length === 10 ? `${iso}T12:00` : 
 const hourLabel = (iso: string) => asUtc(iso).toLocaleTimeString([], { hour: "numeric", timeZone: "UTC" });
 const dayLabel = (iso: string, i: number) => (i === 0 ? "Today" : asUtc(iso).toLocaleDateString([], { weekday: "short", timeZone: "UTC" }));
 
-function cell(when: string, temp: string, label: string, low?: string): HTMLElement {
+function cell(when: string, code: number, isDay: boolean, temp: string, low?: string): HTMLElement {
+  const { label } = condition(code, isDay);
   const node = Object.assign(document.createElement("div"), { className: "f-cell", title: label });
   const temps = span("f-temps", "");
-  temps.append(span("w-temp", temp), ...(low ? [span("f-low", low)] : []));
+  temps.append(weatherIcon(code, isDay), span("w-temp", temp), ...(low ? [span("f-low", low)] : []));
   node.append(span("f-when", when), temps, span("w-label", label));
   return node;
 }
@@ -43,8 +45,8 @@ function forecastRows(w: Weather): HTMLElement[] {
     return node;
   };
   return [
-    ...(hours.length ? [row("hours", "Next hours", hours.map((h) => cell(hourLabel(h.time), deg(h.temperature), condition(h.code, h.isDay).label)))] : []),
-    ...(days.length ? [row("days", "Next days", days.map((d, i) => cell(dayLabel(d.date, i), deg(d.high), condition(d.code, true).label, deg(d.low))))] : []),
+    ...(hours.length ? [row("hours", "Next hours", hours.map((h) => cell(hourLabel(h.time), h.code, h.isDay, deg(h.temperature))))] : []),
+    ...(days.length ? [row("days", "Next days", days.map((d, i) => cell(dayLabel(d.date, i), d.code, true, deg(d.high), deg(d.low))))] : []),
   ];
 }
 
@@ -67,6 +69,6 @@ export function renderWeather(s: WeatherSettings, w: Weather | null, failed: boo
   a.title = `${c.label} in ${place.name}${place.detail ? `, ${place.detail}` : ""}. Feels like ${deg(r.feelsLike)}${w.unit === "fahrenheit" ? "F" : "C"}. Updated ${at}.`;
   const text = span("w-text", "");
   text.append(span("w-label", c.label), span("w-place", `${place.name} · feels ${deg(r.feelsLike)}`));
-  a.replaceChildren(span("w-temp", deg(r.temperature)), text);
+  a.replaceChildren(weatherIcon(r.code, r.isDay), span("w-temp", deg(r.temperature)), text);
   panel.replaceChildren(...forecastRows(w));
 }

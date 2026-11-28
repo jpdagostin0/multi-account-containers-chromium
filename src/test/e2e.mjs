@@ -608,9 +608,13 @@ async function session(c, { withErrors = true } = {}) {
       // Inline: right after the current weather, same strip, not over the search box.
       return [fr.width > 300 && Math.round(fr.left) === Math.round(wr.right) && Math.round(fr.top) === Math.round(wr.top) && fr.bottom <= sr.top ? "inline" : [fr.width, fr.left, wr.right, fr.top, wr.top, fr.bottom, sr.top].map(Math.round).join(),
         rows.map(r => [r.getAttribute("aria-label"), r.querySelectorAll(".f-cell").length]),
-        [...f.querySelectorAll(".days .f-cell")].map(c => c.textContent), [...f.querySelectorAll(".hours .w-temp")].map(c => c.textContent)]; })()`);
+        [...f.querySelectorAll(".days .f-cell")].map(c => c.textContent), [...f.querySelectorAll(".hours .w-temp")].map(c => c.textContent),
+        [...document.querySelectorAll("#weather-box .w-icon")].map(i => i.getAttribute("class").replace(/^lucide lucide-| w-icon$/g, "") + ":" + Math.round(i.getBoundingClientRect().width)),
+        [...f.querySelectorAll(".f-cell")].every(c => c.scrollWidth <= c.clientWidth)]; })()`);
     check("hovering the weather slides a 5 hour and 3 day forecast out to its right, inline", fcHidden === 0 && fc[0] === "inline"
       && JSON.stringify(fc[1]) === JSON.stringify([["Next hours", 5], ["Next days", 3]]) && fc[2][0] === "Today14°5°Rain" && fc[3].join() === "11°,12°,13°,14°,15°", fc);
+    check("the current weather and each forecast cell show the condition's icon, without overflowing",
+      fc[4].join() === "cloud-rain:26,cloud-rain:16,cloud-rain:16,cloudy:16,cloudy:16,cloudy:16,cloud-rain:16,sun:16,cloud-snow:16" && fc[5], fc.slice(4));
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-forecast.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
     await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 700 }, wNtp);
