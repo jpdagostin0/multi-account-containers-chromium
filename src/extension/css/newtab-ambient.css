@@ -48,7 +48,8 @@
   display: flex;
   inline-size: fit-content;
   margin-block-end: 12px;
-  max-inline-size: 100%;
+  margin-inline-start: calc(-1 * var(--search-out));
+  max-inline-size: calc(100% + 2 * var(--search-out));
   transition: background-color 150ms;
 }
 
