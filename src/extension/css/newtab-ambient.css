@@ -42,14 +42,14 @@
 }
 
 /* The weather, over the search box. Hovering it slides the forecast out to
-   its right, in the same strip (nothing pops up over the page). */
+   its right, in the same strip (nothing pops up over the page); past half the
+   search box's width the forecast scrolls. */
 #weather-box {
   align-items: stretch;
   display: flex;
   inline-size: fit-content;
   margin-block-end: 12px;
-  margin-inline-start: calc(-1 * var(--search-out));
-  max-inline-size: calc(100% + 2 * var(--search-out));
+  max-inline-size: 50%;
   transition: background-color 150ms;
 }
 
@@ -112,12 +112,28 @@
   min-inline-size: 0;
   opacity: 0;
   overflow: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
   transition: max-inline-size 320ms var(--drawer-ease), opacity 200ms ease;
+}
+
+/* Fade the side that has more to scroll to. */
+#forecast.more-end {
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+
+#forecast.more-start {
+  mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent);
+}
+
+#forecast.more-start.more-end {
+  mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
 }
 
 #weather-box:hover #forecast {
   max-inline-size: 760px;
   opacity: 1;
+  overflow-x: auto;
 }
 
 .f-row {

@@ -50,6 +50,29 @@ function forecastRows(w: Weather): HTMLElement[] {
   ];
 }
 
+// Past half the search box's width the forecast scrolls sideways: the mouse
+// wheel scrolls it too, and the side with more to see fades out.
+function markEdges(panel: HTMLElement): void {
+  const end = panel.scrollWidth - panel.clientWidth;
+  panel.classList.toggle("more-start", panel.scrollLeft > 1);
+  panel.classList.toggle("more-end", panel.scrollLeft < end - 1);
+}
+
+let scrollWired = false;
+function wireScrolling(panel: HTMLElement): void {
+  if (scrollWired) return;
+  scrollWired = true;
+  panel.addEventListener("wheel", (e) => {
+    if (panel.scrollWidth <= panel.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    panel.scrollLeft += e.deltaY;
+  }, { passive: false });
+  panel.addEventListener("scroll", () => markEdges(panel), { passive: true });
+  // The panel grows when hovered; check again once it has.
+  panel.addEventListener("transitionend", () => markEdges(panel));
+  new ResizeObserver(() => markEdges(panel)).observe(panel);
+}
+
 export function renderWeather(s: WeatherSettings, w: Weather | null, failed: boolean): void {
   const box = document.getElementById("weather-box")!;
   const a = document.getElementById("weather")!;
@@ -71,4 +94,6 @@ export function renderWeather(s: WeatherSettings, w: Weather | null, failed: boo
   text.append(span("w-label", c.label), span("w-place", `${place.name} · feels ${deg(r.feelsLike)}`));
   a.replaceChildren(weatherIcon(r.code, r.isDay), span("w-temp", deg(r.temperature)), text);
   panel.replaceChildren(...forecastRows(w));
+  wireScrolling(panel);
+  markEdges(panel);
 }

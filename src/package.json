@@ -9,6 +9,7 @@
     "test": "npm run typecheck && node build.mjs && node test/e2e.mjs"
   },
   "dependencies": {
+    "@kkrll/shaders": "^0.7.0",
     "lucide-static": "^1.82.0",
     "pixelfx": "github:patch-gg/pixelfx#5294518ce7c72e48b6100a744596e0acf57f2826",
     "tldts": "^7.6.0",

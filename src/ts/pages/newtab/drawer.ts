@@ -17,12 +17,10 @@ export function setUpDrawer(opts: {
   const root = document.documentElement;
   const main = document.querySelector("main")!;
 
-  // Shrink the page into the space beside the drawer, centred there. The
-  // search box reaches past main's sides, so the widest child counts too.
+  // Shrink the page into the space beside the drawer, centred there.
   function fit(): void {
     const free = innerWidth - drawer.offsetWidth;
-    const width = Math.max(main.offsetWidth, ...[...main.children].map((c) => (c as HTMLElement).offsetWidth));
-    const scale = Math.min(1, (free - 16) / width);
+    const scale = Math.min(1, (free - 16) / main.offsetWidth);
     const shift = drawer.offsetWidth / 2;
     root.style.setProperty("--page-shift", `${side === "end" ? -shift : shift}px`);
     root.style.setProperty("--page-scale", String(Math.max(scale, 0.4)));

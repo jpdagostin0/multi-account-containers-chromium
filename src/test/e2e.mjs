@@ -599,9 +599,8 @@ async function session(c, { withErrors = true } = {}) {
       return [document.getElementById("weather-box").hidden, w.textContent, Math.round(q.top - b.bottom), Math.round(b.left - q.left), document.documentElement.dataset.effect]; })()`);
     check("the weather is nothing to click", await P(wNtp, `document.getElementById("weather").tagName === "DIV" && getComputedStyle(document.getElementById("weather")).cursor === "default"`));
     check("weather sits over the search box", !wLine[0] && wLine[1].startsWith("12°Rain") && wLine[1].includes("Testville") && wLine[2] >= 0 && wLine[2] < 30 && wLine[3] === 0, wLine);
-    const sWide = await P(wNtp, `(() => { const q = document.getElementById("q").getBoundingClientRect(), s = document.getElementById("sections").getBoundingClientRect();
-      return [q.left - s.left, s.right - q.right].map(Math.round); })()`);
-    check("the search box reaches 64px past the tiles on each side", sWide.join() === "-64,-64", sWide);
+    const mWide = await P(wNtp, `[document.getElementById("q"), document.getElementById("sections")].map(e => Math.round(e.getBoundingClientRect().width))`);
+    check("the page column is 1000px wide (search box and tiles alike)", mWide.join() === "1000,1000", mWide);
     const fcHidden = await P(wNtp, `document.getElementById("forecast").getBoundingClientRect().width`);
     const wBox = await P(wNtp, `(() => { const b = document.getElementById("weather").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
     await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: wBox[0], y: wBox[1] }, wNtp);
@@ -609,7 +608,7 @@ async function session(c, { withErrors = true } = {}) {
     const fc = await P(wNtp, `(() => { const f = document.getElementById("forecast"), rows = [...f.querySelectorAll(".f-row")];
       const fr = f.getBoundingClientRect(), wr = document.getElementById("weather").getBoundingClientRect(), sr = document.getElementById("search").getBoundingClientRect();
       // Inline: right after the current weather, same strip, not over the search box.
-      return [fr.width > 300 && Math.round(fr.left) === Math.round(wr.right) && Math.round(fr.top) === Math.round(wr.top) && fr.bottom <= sr.top ? "inline" : [fr.width, fr.left, wr.right, fr.top, wr.top, fr.bottom, sr.top].map(Math.round).join(),
+      return [fr.width > 100 && Math.round(fr.left) === Math.round(wr.right) && Math.round(fr.top) === Math.round(wr.top) && fr.bottom <= sr.top ? "inline" : [fr.width, fr.left, wr.right, fr.top, wr.top, fr.bottom, sr.top].map(Math.round).join(),
         rows.map(r => [r.getAttribute("aria-label"), r.querySelectorAll(".f-cell").length]),
         [...f.querySelectorAll(".days .f-cell")].map(c => c.textContent), [...f.querySelectorAll(".hours .w-temp")].map(c => c.textContent),
         [...document.querySelectorAll("#weather-box .w-icon")].map(i => i.getAttribute("class").replace(/^lucide lucide-| w-icon$/g, "") + ":" + Math.round(i.getBoundingClientRect().width)),
@@ -618,6 +617,14 @@ async function session(c, { withErrors = true } = {}) {
       && JSON.stringify(fc[1]) === JSON.stringify([["Next hours", 5], ["Next days", 3]]) && fc[2][0] === "Today14°5°Rain" && fc[3].join() === "11°,12°,13°,14°,15°", fc);
     check("the current weather and each forecast cell show the condition's icon, without overflowing",
       fc[4].join() === "cloud-rain:26,cloud-rain:16,cloud-rain:16,cloudy:16,cloudy:16,cloudy:16,cloud-rain:16,sun:16,cloud-snow:16" && fc[5], fc.slice(4));
+    const fcScroll = async () => P(wNtp, `(() => { const f = document.getElementById("forecast"), b = document.getElementById("weather-box").getBoundingClientRect();
+      return [Math.round(b.width), Math.round(document.getElementById("q").getBoundingClientRect().width / 2), f.scrollWidth > f.clientWidth, Math.round(f.scrollLeft), f.className]; })()`);
+    const fs0 = await fcScroll();
+    await c.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: wBox[0] + 300, y: wBox[1], deltaX: 0, deltaY: 120 }, wNtp);
+    await sleep(400);
+    const fs1 = await fcScroll();
+    check("past half the search box's width the forecast scrolls (the wheel too), fading the side with more",
+      fs0[0] <= fs0[1] && fs0[2] && fs0[3] === 0 && fs0[4] === "more-end" && fs1[3] > 0 && fs1[4].split(" ").sort().join() === "more-end,more-start", [fs0, fs1]);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-forecast.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
     await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 700 }, wNtp);

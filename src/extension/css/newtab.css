@@ -31,17 +31,13 @@ body {
 }
 
 main {
-  /* How far the search box (and the weather over it) reaches past the
-     tiles on each side, where the window has room. */
-  --search-out: min(64px, max(0px, (100vw - 920px) / 2));
   margin: 0 auto;
-  max-width: 920px;
+  max-width: 1000px;
   padding: 10vh 24px 48px;
 }
 
 #search {
   margin-bottom: 40px;
-  margin-inline: calc(-1 * var(--search-out));
 }
 
 #q {
