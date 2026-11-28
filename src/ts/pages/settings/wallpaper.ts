@@ -6,7 +6,7 @@
 // follows the weather, or an image (a file or a web address).
 
 import type { Wallpaper, WallpaperApi, WallpaperKind } from "../../background/wallpaper";
-import { card, el, savedNote } from "./dom";
+import { card, el, savedNote, toggle } from "./dom";
 
 const KINDS: [WallpaperKind, string][] = [["none", "None"], ["sky", "Pixel sky"], ["image", "Image"]];
 const MAX_SIDE = 2560;
@@ -86,6 +86,10 @@ export function wallpaperSection(wallpaper: WallpaperApi): HTMLElement {
   }
   const dim = slider("Dim", "Darken the background so the page reads well over it.", 80, 5, (v) => ({ dim: v / 100 }));
   const blur = slider("Blur", "Soften the background.", 40, 1, (v) => ({ blur: v }));
+  const pixelArt = toggle("Pixel art", "Dither the image into chunky pixels and a few shades of each color (needs WebGPU).", (on) => save({ pixelArt: on }));
+  const pixelSize = slider("Pixel size", "How big the pixels are.", 20, 1, (v) => ({ pixelSize: v }));
+  const colors = slider("Shades", "How many shades of each color are left.", 7, 1, (v) => ({ colors: v }));
+  pixelSize.input.min = colors.input.min = "2";
 
   function render(): void {
     if (!w) return;
@@ -97,10 +101,15 @@ export function wallpaperSection(wallpaper: WallpaperApi): HTMLElement {
     if (w.image && !w.image.startsWith("data:")) url.value = w.image;
     dim.input.value = String(Math.round(w.dim * 100));
     blur.input.value = String(w.blur);
+    pixelArt.node.hidden = w.kind !== "image";
+    pixelSize.node.hidden = colors.node.hidden = w.kind !== "image" || !w.pixelArt;
+    pixelArt.input.checked = w.pixelArt;
+    pixelSize.input.value = String(w.pixelSize);
+    colors.input.value = String(w.colors);
   }
   wallpaper.get().then((v) => { w = v; render(); });
 
   return card("Wallpaper",
     "Behind the new tab page. The pixel sky follows the weather and the time of day; weather effects play over images too.",
-    kinds, image, dim.node, blur.node, el("p", { className: "actions" }, note.node));
+    kinds, image, pixelArt.node, pixelSize.node, colors.node, dim.node, blur.node, el("p", { className: "actions" }, note.node));
 }

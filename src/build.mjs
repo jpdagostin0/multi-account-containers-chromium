@@ -100,9 +100,13 @@ const bundles = [
   ["pages/newtab/index.ts", "newtab.js", "esm"],
   ["pages/theme.ts", "theme.js", "iife"],
 ];
+// ESM bundles split out dynamic imports (pages/newtab/pixel-art.ts loads its
+// WebGPU library only when a wallpaper needs it) into chunks beside them.
 await Promise.all(bundles.map(([entry, file, format]) => esbuild.build({
-  entryPoints: [path.join(srcTs, entry)],
-  outfile: path.join(jsOut, file),
+  entryPoints: [{ in: path.join(srcTs, entry), out: file.replace(/\.js$/, "") }],
+  outdir: jsOut,
+  splitting: format === "esm",
+  chunkNames: "chunks/[name]-[hash]",
   bundle: true,
   format,
   target: TARGET,

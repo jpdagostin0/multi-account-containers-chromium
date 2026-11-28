@@ -602,6 +602,8 @@ async function session(c, { withErrors = true } = {}) {
     const mWide = await P(wNtp, `[document.getElementById("q"), document.getElementById("sections")].map(e => Math.round(e.getBoundingClientRect().width))`);
     check("the page column is 1000px wide (search box and tiles alike)", mWide.join() === "1000,1000", mWide);
     const fcHidden = await P(wNtp, `document.getElementById("forecast").getBoundingClientRect().width`);
+    const wText = () => P(wNtp, `(() => { const t = document.querySelector("#weather .w-text"); return [Math.round(t.getBoundingClientRect().width), getComputedStyle(t).opacity]; })()`);
+    const wText0 = await wText();
     const wBox = await P(wNtp, `(() => { const b = document.getElementById("weather").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
     await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: wBox[0], y: wBox[1] }, wNtp);
     await sleep(400);
@@ -619,6 +621,8 @@ async function session(c, { withErrors = true } = {}) {
       fc[4].join() === "cloud-rain:26,cloud-rain:16,cloud-rain:16,cloudy:16,cloudy:16,cloudy:16,cloud-rain:16,sun:16,cloud-snow:16" && fc[5], fc.slice(4));
     const fcScroll = async () => P(wNtp, `(() => { const f = document.getElementById("forecast"), b = document.getElementById("weather-box").getBoundingClientRect();
       return [Math.round(b.width), Math.round(document.getElementById("q").getBoundingClientRect().width / 2), f.scrollWidth > f.clientWidth, Math.round(f.scrollLeft), f.className]; })()`);
+    const wText1 = await wText();
+    check("hovering folds the current weather's detail away (temperature and icon stay)", wText0[0] > 50 && wText0[1] === "1" && wText1[0] === 0 && wText1[1] === "0", [wText0, wText1]);
     const fs0 = await fcScroll();
     await c.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: wBox[0] + 300, y: wBox[1], deltaX: 0, deltaY: 120 }, wNtp);
     await sleep(400);
@@ -674,6 +678,20 @@ async function session(c, { withErrors = true } = {}) {
         return h ? [getComputedStyle(h.closest(".card")).opacity, h.closest(".card").getBoundingClientRect().height > 100] : null; })), 700)); })()`);
     check("Weather and Wallpaper cards show in the settings drawer", JSON.stringify(drawerCards) === JSON.stringify([["1", true], ["1", true]]), drawerCards);
     await P(wNtp, `document.querySelector("#settings-drawer .close").click()`);
+    // Pixel art: the image dithered on the GPU, or the plain image where WebGPU isn't there.
+    const gradient = await P(wNtp, `(() => { const c = Object.assign(document.createElement("canvas"), { width: 400, height: 240 }); const x = c.getContext("2d");
+      const g = x.createLinearGradient(0, 0, 400, 240); g.addColorStop(0, "#f80"); g.addColorStop(1, "#08f"); x.fillStyle = g; x.fillRect(0, 0, 400, 240); return c.toDataURL(); })()`);
+    await B(`__maccWallpaper.set({ dim: 0, blur: 0, image: ${JSON.stringify(gradient)}, pixelArt: true, pixelSize: 12, colors: 3 })`);
+    await sleep(2500);
+    const art = await P(wNtp, `(async () => { const gpu = !!(navigator.gpu && await navigator.gpu.requestAdapter()); const a = document.getElementById("wallpaper-art");
+      return [gpu, a.hidden, a.width, a.height, document.getElementById("wallpaper").hidden]; })()`);
+    check("pixel art draws the image on the GPU (or falls back to the plain image)", art[0] ? !art[1] && art[2] === 400 && art[3] === 240 && art[4] : art[1] && !art[4], art);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-wallpaper-pixel-art.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
+    await B(`__maccWallpaper.set({ pixelArt: false })`);
+    await sleep(500);
+    const unart = await P(wNtp, `[document.getElementById("wallpaper-art").hidden, document.getElementById("wallpaper").hidden]`);
+    check("pixel art off: the plain image again", unart[0] && !unart[1], unart);
     await B(`__maccWallpaper.set({ kind: "none" }).then(() => __maccWeather.set({ effects: "off", show: false }))`);
     await sleep(500);
     const plain = await P(wNtp, `[document.getElementById("scene").hidden, document.getElementById("wallpaper").hidden, document.getElementById("weather-box").hidden, document.documentElement.classList.contains("has-wallpaper")]`);

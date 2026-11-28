@@ -8,6 +8,7 @@
 import type { Weather, WeatherApi, WeatherSettings } from "../../background/weather";
 import { SKY_OF } from "../../background/weather/conditions";
 import type { Wallpaper, WallpaperApi } from "../../background/wallpaper";
+import { createPixelArt } from "./pixel-art";
 import { createScene, type SceneSpec } from "./scene";
 import { renderWeather } from "./weather";
 
@@ -27,6 +28,7 @@ export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi): void
   const image = document.getElementById("wallpaper")!;
   const dim = document.getElementById("wallpaper-dim")!;
   const scene = createScene(document.getElementById("scene") as HTMLCanvasElement);
+  const pixelArt = createPixelArt(document.getElementById("wallpaper-art") as HTMLCanvasElement);
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   async function update(force = false): Promise<void> {
@@ -39,8 +41,16 @@ export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi): void
     clearTimeout(timer);
     timer = setTimeout(update, w ? Math.max(60_000, w.fetchedAt + HOUR - Date.now() + 5000) : failed ? 5 * 60_000 : HOUR);
     renderWeather(s, w, failed);
-    image.hidden = wp.kind !== "image" || !wp.image;
-    image.style.backgroundImage = image.hidden ? "" : `url(${JSON.stringify(wp.image)})`;
+    const hasImage = wp.kind === "image" && !!wp.image;
+    const art = hasImage && wp.pixelArt;
+    // The plain image waits for the pixel art, and stands in where it can't be drawn.
+    const showImage = (on: boolean) => {
+      image.hidden = !on;
+      image.style.backgroundImage = on ? `url(${JSON.stringify(wp.image)})` : "";
+    };
+    showImage(hasImage && !art);
+    pixelArt.set(art ? { image: wp.image, pixelSize: wp.pixelSize, colors: wp.colors } : null)
+      .then((drawn) => { if (art && !drawn) showImage(true); });
     // A backdrop filter over the wallpaper and the scene blurs both (mirrored at the edges, so they stay full).
     const on = wp.kind !== "none";
     dim.style.backgroundColor = `rgb(0 0 0 / ${on ? wp.dim : 0})`;

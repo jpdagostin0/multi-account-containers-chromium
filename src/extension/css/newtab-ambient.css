@@ -6,6 +6,7 @@
    (ts/pages/newtab/ambient.ts). */
 
 #wallpaper,
+#wallpaper-art,
 #scene,
 #wallpaper-dim {
   block-size: 100vh;
@@ -21,6 +22,13 @@
   background: center / cover no-repeat;
 }
 
+/* The image as pixel art (ts/pages/newtab/pixel-art.ts), at the image's size. */
+#wallpaper-art {
+  animation: ambient-in 400ms ease-out;
+  image-rendering: pixelated;
+  object-fit: cover;
+}
+
 #scene {
   animation: ambient-in 400ms ease-out;
   image-rendering: pixelated;
@@ -33,6 +41,7 @@
 }
 
 #wallpaper[hidden],
+#wallpaper-art[hidden],
 #scene[hidden] {
   display: none;
 }
@@ -94,6 +103,18 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
+  max-inline-size: 240px;
+  overflow: hidden;
+  transition: max-inline-size 320ms var(--drawer-ease), opacity 200ms ease, margin 320ms var(--drawer-ease);
+  white-space: nowrap;
+}
+
+/* While the forecast is out, the current weather folds to its icon and
+   temperature (the forecast's cells say the rest). */
+#weather-box:hover .w-text {
+  margin-inline-start: -10px;
+  max-inline-size: 0;
+  opacity: 0;
 }
 
 .w-label {

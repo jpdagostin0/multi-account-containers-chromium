@@ -12,10 +12,18 @@ import { base } from "./base";
 export const WALLPAPER_KEY = "__macc_wallpaper";
 
 export type WallpaperKind = "none" | "sky" | "image";
-/** blur: in CSS pixels. */
-export interface Wallpaper { kind: WallpaperKind; image: string; dim: number; blur: number }
+/** blur: in CSS pixels. pixelArt: the image dithered into pixel art (on the
+ *  GPU), in blocks of pixelSize (per 2000 pixels of the image's short side)
+ *  and `colors` shades of each hue. */
+export interface Wallpaper {
+  kind: WallpaperKind; image: string; dim: number; blur: number;
+  pixelArt: boolean; pixelSize: number; colors: number;
+}
 
-const DEFAULTS: Wallpaper = { kind: "sky", image: "", dim: 0, blur: 0 };
+const DEFAULTS: Wallpaper = { kind: "sky", image: "", dim: 0, blur: 0, pixelArt: false, pixelSize: 8, colors: 4 };
+
+const clampInt = (v: unknown, min: number, max: number, fallback: number) =>
+  Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v as number))) : fallback;
 
 const validImage = (s: string) => /^data:image\//.test(s) || /^https?:\/\//.test(s);
 
@@ -26,6 +34,9 @@ function parse(stored: unknown): Wallpaper {
     image: typeof w.image === "string" && validImage(w.image) ? w.image : "",
     dim: Number.isFinite(w.dim) ? Math.min(0.8, Math.max(0, w.dim!)) : DEFAULTS.dim,
     blur: Number.isFinite(w.blur) ? Math.min(40, Math.max(0, w.blur!)) : DEFAULTS.blur,
+    pixelArt: typeof w.pixelArt === "boolean" ? w.pixelArt : DEFAULTS.pixelArt,
+    pixelSize: clampInt(w.pixelSize, 2, 20, DEFAULTS.pixelSize),
+    colors: clampInt(w.colors, 2, 7, DEFAULTS.colors),
   };
 }
 

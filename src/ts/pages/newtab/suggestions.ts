@@ -44,6 +44,12 @@ export function setUpSuggestions({ tabId, mine, byCsid, search, hist, top, go }:
   const searchItem = (text: string): Item => ({ kind: "search", text, act: () => go(text) });
 
   function render(): void {
+    const open = items.length > 1 || (items.length === 1 && items[0]!.kind !== "search");
+    list.hidden = !open;
+    form.classList.toggle("suggesting", open);
+    q.setAttribute("aria-expanded", String(open));
+    // Closed, the old rows stay while the list fades out.
+    if (!open) return;
     list.replaceChildren(...items.map((it, i) => {
       const li = document.createElement("li");
       li.setAttribute("role", "option");
@@ -74,10 +80,6 @@ export function setUpSuggestions({ tabId, mine, byCsid, search, hist, top, go }:
       li.addEventListener("mousemove", () => { if (sel !== i) { sel = i; mark(); } });
       return li;
     }));
-    const open = items.length > 1 || (items.length === 1 && items[0]!.kind !== "search");
-    list.hidden = !open;
-    form.classList.toggle("suggesting", open);
-    q.setAttribute("aria-expanded", String(open));
   }
 
   function mark(): void {
