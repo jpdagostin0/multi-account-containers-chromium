@@ -50,15 +50,15 @@
   from { opacity: 0; }
 }
 
-/* The weather, over the search box. Hovering it slides the forecast out to
-   its right, in the same strip (nothing pops up over the page); past half the
-   search box's width the forecast scrolls. */
+/* The weather, over the search box: a strip three quarters of its width,
+   with the clock at the far end. Hovering slides the forecast out between
+   them (nothing pops up over the page); it scrolls when it doesn't fit. */
 #weather-box {
   align-items: stretch;
+  box-sizing: border-box;
   display: flex;
-  inline-size: fit-content;
+  inline-size: 75%;
   margin-block-end: 12px;
-  max-inline-size: 50%;
   transition: background-color 150ms;
 }
 
@@ -129,6 +129,7 @@
 
 #forecast {
   display: flex;
+  flex: 0 1 auto;
   max-inline-size: 0;
   min-inline-size: 0;
   opacity: 0;
@@ -136,6 +137,31 @@
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   transition: max-inline-size 320ms var(--drawer-ease), opacity 200ms ease;
+}
+
+#clock {
+  align-items: flex-end;
+  cursor: default;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 1px;
+  justify-content: center;
+  margin-inline-start: auto;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.c-time {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.c-date {
+  color: var(--muted);
+  font-size: 11.5px;
 }
 
 /* Fade the side that has more to scroll to. */

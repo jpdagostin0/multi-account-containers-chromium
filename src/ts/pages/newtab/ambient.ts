@@ -8,6 +8,7 @@
 import type { Weather, WeatherApi, WeatherSettings } from "../../background/weather";
 import { SKY_OF } from "../../background/weather/conditions";
 import type { Wallpaper, WallpaperApi } from "../../background/wallpaper";
+import { startClock } from "./clock";
 import { createPixelArt } from "./pixel-art";
 import { createScene, type SceneSpec } from "./scene";
 import { renderWeather } from "./weather";
@@ -29,6 +30,7 @@ export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi): void
   const dim = document.getElementById("wallpaper-dim")!;
   const scene = createScene(document.getElementById("scene") as HTMLCanvasElement);
   const pixelArt = createPixelArt(document.getElementById("wallpaper-art") as HTMLCanvasElement);
+  startClock(document.getElementById("clock")!);
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   async function update(force = false): Promise<void> {
