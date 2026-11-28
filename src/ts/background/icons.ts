@@ -55,7 +55,7 @@ function render(draw: (ctx: CanvasRenderingContext2D) => void): string {
 
 const close = (img: CanvasImageSource | null) => { if (img instanceof ImageBitmap) img.close(); };
 
-/** 32px copy of a site icon (new tab and history pages). */
+/** 32px copy of a site icon (new tab page and its history drawer). */
 export async function plainIcon(hrefOrBlob: string | Blob | null): Promise<string | null> {
   const blob = typeof hrefOrBlob === "string" ? await fetchIcon(hrefOrBlob) : hrefOrBlob;
   const img = await decode(blob, SIZE);

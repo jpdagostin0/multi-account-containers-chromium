@@ -4,7 +4,7 @@ A port of Mozilla's [Firefox Multi-Account Containers][upstream] to
 Chromium browsers that still run Manifest V2 extensions, such as
 [Helium](https://helium.computer). It keeps upstream's popup, site
 assignments, locked containers and keyboard shortcuts, and adds a new tab
-page, per-container history and a settings page. Per-container proxies,
+page that holds per-container history, the weather and all settings. Per-container proxies,
 Firefox Sync and the Mozilla VPN integration aren't included. The extension files derived from upstream live in
 [`src/extension/`](src/extension), and a TypeScript compatibility layer in
 [`src/ts/`](src/ts) emulates what Chromium lacks.
@@ -49,7 +49,7 @@ when it's off.
 
 Firefox draws a colored line on container tabs. Chromium doesn't let
 extensions style tabs, so the port offers these instead, all switchable in the
-settings page:
+settings:
 
 - **Page border** (off by default). A thin frame in the container's color is
   drawn around container pages.
@@ -80,7 +80,9 @@ embedded login frame on a subdomain, isn't moved.
 
 ## Settings
 
-The extension's options open its settings page:
+Settings live in a drawer on the new tab page (the **Settings** button at the
+bottom left, under the container tabs). The extension's options open a new
+tab with it open:
 
 - **Search engine:** the new tab page's search box uses the browser's default
   engine, one of the common engines (DuckDuckGo, Google, Brave, Startpage,
@@ -91,6 +93,10 @@ The extension's options open its settings page:
 - **Colors:** pages and the toolbar panel follow the system's light or dark
   mode, stay light or dark, or use custom background, surface and text colors.
   There are presets such as Catppuccin, Nord, Gruvbox and Tokyo Night.
+- **Weather:** your location (the browser asks first) or a city or postal
+  code, units, and the pixel art effects.
+- **Wallpaper:** none, a pixel art sky that follows the weather and the time
+  of day, or an image (a file or a web address), with dim and blur.
 - **Highlighting, tabs, shortcuts:** the page border and tab group switches,
   whether "Always open in" replaces the tab, which container each keyboard
   shortcut opens, and the introduction.
@@ -98,21 +104,27 @@ The extension's options open its settings page:
 ## New tab page
 
 The extension replaces the new tab page. It shows your top sites grouped by
-container, plus **No container**, with the tab's own container first.
+container, plus **No container**, with the tab's own container first, each
+group on its container's color.
 
 - **Opening tiles:** clicking a tile opens it in that tile's container, even
   from a new tab in a different container. Ctrl- or middle-click opens it in a
   new background tab in that container.
 - **Hiding tiles:** the × on a tile removes it from the list.
-- **Search:** the search box uses the engine from the settings page, in the
+- **Search:** the search box uses the engine from the settings, in the
   tab's container. Suggestions come from the engine (fetched without cookies),
   your open tabs and this container's history.
 - **How visits are counted:** Chromium's history is shared by all containers,
   so the extension counts visits per container itself, per site (origin)
   rather than per page: a tile opens the site's front page. "No container"
   starts out seeded from Chromium's top sites.
-- **History link:** the **History** link at the top right opens the
-  per-container history.
+- **History:** the **History** button at the top right opens the
+  per-container history drawer.
+- **Weather:** the current weather from [Open-Meteo](https://open-meteo.com)
+  sits over the search box; hover it for the next five hours and three days.
+  Readings are kept for an hour. Rain, snow, storms, clouds, fog and clear
+  nights play behind the page as pixel art
+  ([pixelfx](https://github.com/patch-gg/pixelfx)).
 
 ## Per-container history
 
@@ -121,7 +133,8 @@ own, with the container of every visit. That includes in-page navigations of
 single-page apps.
 
 - **Opening it:** use **History by container** in the toolbar button's
-  right-click menu, or the **History** link on the new tab page.
+  right-click menu (a new tab with the drawer open at the tab's container), or
+  the **History** button on the new tab page.
 - **Filtering and opening:** filter by container, including **No container**,
   and search titles and URLs. A click opens the page in the container it was
   visited in.
@@ -130,8 +143,8 @@ single-page apps.
 - **Retention:** entries are kept for 90 days. Removing a container removes its
   history.
 - **Favicons:** site icons are saved in the extension's database, one per
-  origin, refreshed weekly and fetched without cookies. The new tab and
-  history pages use them.
+  origin, refreshed weekly and fetched without cookies. The new tab page and
+  its history drawer use them.
 
 Chromium asks once whether to keep the changed new tab page; choose **Keep
 it**.
@@ -159,8 +172,8 @@ node src/test/e2e.mjs      # BROWSER=chromium for another browser
 This starts a test server, then drives a headless browser over CDP. It checks
 cookie, storage, cache and service-worker isolation in both directions,
 container inheritance, restore, strict-CSP pages, per-container wipes, site
-assignment, container deletion, the new tab page, search, history and the
-settings page.
+assignment, container deletion, the new tab page, search, history, weather,
+wallpaper and settings.
 
 ## Remaining limits
 

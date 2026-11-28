@@ -59,7 +59,8 @@ async function session(c, { withErrors = true } = {}) {
   const pageSession = async (urlPart) => {
     let t;
     for (let i = 0; i < 50 && !t; i++) {
-      t = (await c.targets()).find((x) => x.type === "page" && x.url.includes(urlPart));
+      // The settings tab (newtab.html#settings) stays open; only find it by name.
+      t = (await c.targets()).find((x) => x.type === "page" && x.url.includes(urlPart) && (urlPart.includes("#") || !x.url.includes("#")));
       if (!t) await sleep(100);
     }
     if (!t) throw new Error(`no page ${urlPart}: ${(await c.targets()).map((x) => x.url).join(", ")}`);
@@ -377,11 +378,13 @@ async function session(c, { withErrors = true } = {}) {
     check("settings button at the bottom left of the new tab page", gear.every(Boolean), gear);
     await P(dNtp, `document.getElementById("settings-toggle").click()`);
     await sleep(700);
-    const sd = await P(dNtp, `(() => { const d = document.getElementById("settings-drawer").getBoundingClientRect();
+    const sd = await P(dNtp, `(() => { const d = document.getElementById("settings-drawer").getBoundingClientRect(), t = document.getElementById("container-tabs");
       return [Math.round(d.left), Math.round(d.width / innerWidth * 100), getComputedStyle(document.querySelector("main")).transform !== "none",
-        [...document.querySelectorAll("#settings-drawer .card h2")].map(h => h.textContent).join("|")]; })()`);
+        [...document.querySelectorAll("#settings-drawer .card h2")].map(h => h.textContent).join("|"),
+        t.getBoundingClientRect().bottom <= d.top && getComputedStyle(t).opacity === "1" && document.elementFromPoint(t.getBoundingClientRect().left + 5, t.getBoundingClientRect().top + 5)?.closest("#container-tabs") !== null]; })()`);
     check("settings drawer slides in from the left at about 30% width, page shrinks", sd[0] === 0 && sd[1] >= 28 && sd[1] <= 32 && sd[2]
       && sd[3] === "Search engine|Colors|Weather|Wallpaper|Container highlighting|Tabs|Keyboard shortcuts|Introduction", sd);
+    check("settings drawer sits under the container tabs, which stay usable", sd[4] === true, sd);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-settings-drawer.png"),
       Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, dNtp)).data, "base64"));
     await P(dNtp, `document.getElementById("history-toggle").click()`);
@@ -430,30 +433,38 @@ async function session(c, { withErrors = true } = {}) {
     const rec3 = await iconRec();
     check("a changed icon is picked up on the next visit", rec3.hash !== rec1.hash && rec3.updated > rec1.updated, [rec1, rec3]);
     execFileSync("curl", ["-s", `${ORIGIN}/seticon?c=blue`]);
-    await B(`browser.tabs.update(${spaTab}, {url: "chrome-extension://${extId}/history.html?container=2"})`);
+    // The toolbar menu's history item: a new tab with the history drawer open at the container.
+    await B(`browser.tabs.update(${spaTab}, {url: "chrome-extension://${extId}/newtab.html#history=2"})`);
     await settle();
-    const hp = await pageSession("history.html");
+    const hp = await pageSession("newtab.html#history");
+    await sleep(800);
+    const hrows = await P(hp, `[document.documentElement.classList.contains("history-open"), document.querySelector("#history-drawer .picker-button").textContent,
+      [...document.querySelectorAll("#history-drawer .row")].map(r => r.querySelector(".text .title").textContent)]`);
+    check("#history=2 opens the history drawer at the container", hrows[0] && hrows[1] === "Work" && hrows[2].length > 0, hrows);
+    check("history drawer shows saved icons", await P(hp, `[...document.querySelectorAll("#history-drawer .row .favicon")].some(f => f.style.backgroundImage.includes("data:image"))`));
+    await P(hp, `(() => { const q = document.querySelector(".history-q"); q.value = "zzz-no-such-page"; q.dispatchEvent(new Event("input")); })()`);
     await sleep(600);
-    const hrows = await P(hp, `[...document.querySelectorAll(".row")].map(r => r.querySelector(".badge").textContent)`);
-    check("history page filtered to the container", hrows.length > 0 && hrows.every((b) => b === "Work"), hrows);
-    check("history page shows saved icons", await P(hp, `[...document.querySelectorAll(".row .favicon")].some(f => f.style.backgroundImage.includes("data:image"))`));
+    const searched = await P(hp, `[document.querySelectorAll("#history-drawer .row").length, document.querySelector("#history-drawer .empty").hidden, document.querySelector(".clear-history").textContent]`);
+    check("history drawer search; clear button names the container", searched[0] === 0 && !searched[1] && searched[2] === "Clear Work", searched);
+    await P(hp, `(() => { const q = document.querySelector(".history-q"); q.value = ""; q.dispatchEvent(new Event("input")); })()`);
     await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 700, deviceScaleFactor: 1, mobile: false }, hp);
-    await sleep(300);
+    await sleep(500);
     const hshot = await c.send("Page.captureScreenshot", { format: "png" }, hp);
     fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-history.png"), Buffer.from(hshot.data, "base64"));
     await B(`__maccHistory.clear(2)`);
     check("clearing a container's history", (await hq({ n: 2 })).length === 0 && (await hq({ n: 0 })).length > 0);
     await B(`browser.tabs.remove(${spaTab})`);
 
-    // Settings page
+    // Settings: the options page is the new tab page with the settings drawer open.
     await B(`browser.runtime.openOptionsPage()`);
     await settle();
-    const opt = await pageSession("/settings.html");
-    await sleep(500);
+    const opt = await pageSession("newtab.html#settings");
+    await sleep(800);
+    check("options page opens the new tab page's settings drawer", await P(opt, `document.documentElement.classList.contains("settings-open")`));
     const cards = await P(opt, `[...document.querySelectorAll(".card h2")].map(h => h.textContent)`);
-    check("settings page sections", JSON.stringify(cards) === JSON.stringify(["Search engine", "Colors", "Weather", "Wallpaper", "Container highlighting", "Tabs", "Keyboard shortcuts", "Introduction"]), cards);
+    check("settings sections", JSON.stringify(cards) === JSON.stringify(["Search engine", "Colors", "Weather", "Wallpaper", "Container highlighting", "Tabs", "Keyboard shortcuts", "Introduction"]), cards);
     const optLeft = await P(opt, "document.body.innerText.match(/.{0,30}(sync|vpn|mozilla|firefox|proxy|helper).{0,30}/i)?.[0] ?? null");
-    check("settings page has no Sync, VPN, proxy or helper settings", optLeft === null, optLeft);
+    check("settings have no Sync, VPN, proxy or helper settings", optLeft === null, optLeft);
     await P(opt, `(() => { const s = document.getElementById("engine"); s.value = [...s.options].find(o => o.textContent === "DuckDuckGo").value; s.dispatchEvent(new Event("change")); })()`);
     await sleep(300);
     check("picking an engine in settings saves it", (await B(`__maccSearch.engine().then(e => e && e.name)`)) === "DuckDuckGo");
@@ -542,7 +553,18 @@ async function session(c, { withErrors = true } = {}) {
       meteo.push(u.href);
       const body = u.hostname.startsWith("geocoding")
         ? { results: [{ name: "Testville", latitude: 10.5, longitude: 20.25, admin1: "Test State", country: "Testland" }] }
-        : { current: { temperature_2m: u.searchParams.get("latitude") === "10.5" ? 12.3 : 30, apparent_temperature: 9.6, weather_code: 63, is_day: 0, wind_speed_10m: 12, time: "2026-11-27T22:00" } };
+        : (() => {
+          // Times around the real clock (the page shows the hours after the current one), at UTC+0.
+          const hour = (i) => new Date(Date.now() + i * 3600e3).toISOString().slice(0, 13) + ":00";
+          const day = (i) => new Date(Date.now() + i * 86400e3).toISOString().slice(0, 10);
+          const hours = [0, 1, 2, 3, 4, 5, 6, 7];
+          return {
+            utc_offset_seconds: 0,
+            current: { temperature_2m: u.searchParams.get("latitude") === "10.5" ? 12.3 : 30, apparent_temperature: 9.6, weather_code: 63, is_day: 0, wind_speed_10m: 12, time: hour(0) },
+            hourly: { time: hours.map(hour), temperature_2m: hours.map((i) => 10 + i), weather_code: hours.map((i) => (i < 3 ? 63 : 3)), is_day: hours.map(() => 0) },
+            daily: { time: [0, 1, 2].map(day), temperature_2m_max: [14, 16, 9], temperature_2m_min: [5, 7, -2], weather_code: [63, 0, 73] },
+          };
+        })();
       c.send("Fetch.fulfillRequest", { requestId: m.params.requestId, responseCode: 200,
         responseHeaders: [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: "*" }],
         body: Buffer.from(JSON.stringify(body)).toString("base64") }, m.sessionId).catch(() => {});
@@ -570,11 +592,30 @@ async function session(c, { withErrors = true } = {}) {
     const wNtp = await pageSession("newtab");
     await c.send("Emulation.setDeviceMetricsOverride", { width: 1100, height: 750, deviceScaleFactor: 1, mobile: false }, wNtp);
     await sleep(1200);
-    const wLine = await P(wNtp, `(() => { const w = document.getElementById("weather"), t = document.getElementById("container-tabs");
-      return [w.hidden, w.textContent, Math.round(w.getBoundingClientRect().top - t.getBoundingClientRect().bottom), document.documentElement.dataset.effect]; })()`);
-    check("weather line under the container tabs", !wLine[0] && wLine[1].startsWith("12°Rain") && wLine[1].includes("Testville") && wLine[2] >= 0 && wLine[2] < 20, wLine);
+    const wLine = await P(wNtp, `(() => { const w = document.getElementById("weather"), q = document.getElementById("q").getBoundingClientRect(), b = w.getBoundingClientRect();
+      return [document.getElementById("weather-box").hidden, w.textContent, Math.round(q.top - b.bottom), Math.round(b.left - q.left), document.documentElement.dataset.effect]; })()`);
+    check("weather sits over the search box", !wLine[0] && wLine[1].startsWith("12°Rain") && wLine[1].includes("Testville") && wLine[2] >= 0 && wLine[2] < 30 && wLine[3] === 0, wLine);
+    const fcHidden = await P(wNtp, `getComputedStyle(document.getElementById("forecast")).visibility`);
+    const wBox = await P(wNtp, `(() => { const b = document.getElementById("weather").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
+    await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: wBox[0], y: wBox[1] }, wNtp);
+    await sleep(400);
+    const fc = await P(wNtp, `(() => { const f = document.getElementById("forecast"), rows = [...f.querySelectorAll(".f-row")];
+      return [getComputedStyle(f).visibility, rows.map(r => [r.querySelector(".f-title").textContent, r.querySelectorAll(".f-cell").length]),
+        [...f.querySelectorAll(".days .f-cell")].map(c => c.textContent), [...f.querySelectorAll(".hours .w-temp")].map(c => c.textContent)]; })()`);
+    check("hovering the weather shows a 5 hour and 3 day forecast", fcHidden === "hidden" && fc[0] === "visible"
+      && JSON.stringify(fc[1]) === JSON.stringify([["Next hours", 5], ["Next days", 3]]) && fc[2][0] === "Today14°5°Rain" && fc[3].join() === "11°,12°,13°,14°,15°", fc);
+    fs.writeFileSync((process.env.SHOT || path.join(os.tmpdir(), "macc-popup.png")).replace(/\.png$/, "-forecast.png"),
+      Buffer.from((await c.send("Page.captureScreenshot", { format: "png" }, wNtp)).data, "base64"));
+    await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 700 }, wNtp);
+    const fetches = meteo.filter((u) => u.includes("forecast")).length;
+    const cTab2 = await B(`browser.tabs.create({}).then(t => t.id)`);
+    await sleep(1200);
+    check("another new tab reuses the hour-old reading", meteo.filter((u) => u.includes("forecast")).length === fetches);
+    await B(`browser.tabs.remove(${cTab2})`);
+    const sect = await P(wNtp, `(() => { const s = getComputedStyle(document.querySelector(".container-section")); return [s.borderTopWidth, s.backgroundColor, s.backdropFilter, s.paddingLeft]; })()`);
+    check("frequent sites grouped on the container color with a thick, blurred border", sect[0] === "6px" && sect[1] !== "rgba(0, 0, 0, 0)" && sect[2].startsWith("blur") && sect[3] === "18px", sect);
     check("forecast asked for the place's current weather", meteo.some((u) => /api\.open-meteo\.com\/v1\/forecast\?latitude=10\.5&longitude=20\.25&current=/.test(u)), meteo.filter((u) => u.includes("forecast")));
-    check("rain plays the rain effect", wLine[3] === "rain", wLine[3]);
+    check("rain plays the rain effect", wLine[4] === "rain", wLine[4]);
     const sceneLook = async (s) => P(s, `(() => { const c = document.getElementById("scene"), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
       let h = 0, opaque = 0; for (let i = 0; i < d.length; i += 4) { h = (h * 31 + d[i] + d[i + 1] * 7 + d[i + 2] * 13) >>> 0; if (d[i + 3] === 255) opaque++; }
       return { hidden: c.hidden, w: c.width, h: c.height, pixelated: getComputedStyle(c).imageRendering, cover: getComputedStyle(c).objectFit, hash: h, opaque: opaque / (c.width * c.height) }; })()`);
@@ -614,7 +655,7 @@ async function session(c, { withErrors = true } = {}) {
     await P(wNtp, `document.querySelector("#settings-drawer .close").click()`);
     await B(`__maccWallpaper.set({ kind: "none" }).then(() => __maccWeather.set({ effects: "off", show: false }))`);
     await sleep(500);
-    const plain = await P(wNtp, `[document.getElementById("scene").hidden, document.getElementById("wallpaper").hidden, document.getElementById("weather").hidden, document.documentElement.classList.contains("has-wallpaper")]`);
+    const plain = await P(wNtp, `[document.getElementById("scene").hidden, document.getElementById("wallpaper").hidden, document.getElementById("weather-box").hidden, document.documentElement.classList.contains("has-wallpaper")]`);
     check("no wallpaper, effects off, weather hidden: the plain page", plain[0] && plain[1] && plain[2] && !plain[3], plain);
     await B(`browser.tabs.remove(${wTab})`);
     await c.send("Fetch.disable", {}, bg);

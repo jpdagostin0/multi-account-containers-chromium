@@ -15,6 +15,12 @@ export interface Reading {
   windKmh: number;
   /** ISO time of the reading, in the place's time zone. */
   time: string;
+  /** The place's offset from UTC, in seconds. */
+  utcOffset: number;
+  /** The coming hours, from the current one (ISO times in the place's time zone). */
+  hourly: { time: string; temperature: number; code: number; isDay: boolean }[];
+  /** Today and the next days (ISO dates). */
+  daily: { date: string; high: number; low: number; code: number }[];
 }
 
 export type Unit = "celsius" | "fahrenheit";
@@ -32,11 +38,16 @@ export async function forecast(latitude: number, longitude: number, unit: Unit):
     latitude: String(latitude),
     longitude: String(longitude),
     current: "temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m",
+    // Kept an hour, so a few more than the five shown.
+    hourly: "temperature_2m,weather_code,is_day",
+    forecast_hours: "8",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min",
+    forecast_days: "3",
     temperature_unit: unit,
     wind_speed_unit: "kmh",
     timezone: "auto",
   }).toString();
-  const { current: c } = await getJson(url.href);
+  const { current: c, hourly: h, daily: d, utc_offset_seconds } = await getJson(url.href);
   return {
     temperature: c.temperature_2m,
     feelsLike: c.apparent_temperature,
@@ -44,6 +55,13 @@ export async function forecast(latitude: number, longitude: number, unit: Unit):
     isDay: c.is_day === 1,
     windKmh: c.wind_speed_10m,
     time: c.time,
+    utcOffset: utc_offset_seconds ?? 0,
+    hourly: ((h?.time ?? []) as string[]).map((time, i) => ({
+      time, temperature: h.temperature_2m[i], code: h.weather_code[i], isDay: h.is_day[i] === 1,
+    })),
+    daily: ((d?.time ?? []) as string[]).map((date, i) => ({
+      date, high: d.temperature_2m_max[i], low: d.temperature_2m_min[i], code: d.weather_code[i],
+    })),
   };
 }
 

@@ -94,8 +94,6 @@ const bundles = [
   ["content/index.ts", "content.js", "iife"],
   ["site-icon.ts", "site-icon.js", "iife"],
   ["pages/newtab/index.ts", "newtab.js", "esm"],
-  ["pages/history/index.ts", "history-page.js", "esm"],
-  ["pages/settings/index.ts", "settings.js", "esm"],
   ["pages/theme.ts", "theme.js", "iife"],
 ];
 await Promise.all(bundles.map(([entry, file, format]) => esbuild.build({
@@ -183,8 +181,8 @@ manifest.browser_action = {
   default_title: "Multi-Account Containers",
   default_popup: manifest.browser_action.default_popup,
 };
-// Our own settings page replaces upstream's options page.
-manifest.options_ui = { page: "settings.html", open_in_tab: true };
+// Settings live in the new tab page's drawer; the options page opens it there.
+manifest.options_ui = { page: "newtab.html#settings", open_in_tab: true };
 manifest.content_scripts = [
   {
     matches: ["<all_urls>"],

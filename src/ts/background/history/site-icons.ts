@@ -5,7 +5,7 @@
 // Site icons, one per origin, only ever updated when the site is visited:
 // the icon the page declares (favicon.ts reports it) is fetched without
 // cookies and hashed, and the stored copy is replaced only if the hash
-// changed. Used by the new tab and history pages.
+// changed. Used by the new tab page and its history drawer.
 
 import { lastError } from "../../lib/constants";
 import { done, req } from "../../lib/idb";

@@ -16,10 +16,13 @@
   <canvas id="scene" hidden></canvas>
   <div id="wallpaper-dim"></div>
   <nav id="container-tabs" aria-label="Switch this tab's container"></nav>
-  <button id="weather" type="button" hidden></button>
   <button id="history-toggle" type="button" aria-controls="history-drawer" aria-expanded="false"><span class="clock"></span>History</button>
   <button id="settings-toggle" type="button" aria-controls="settings-drawer" aria-expanded="false"><span class="gear"></span>Settings</button>
   <main>
+    <div id="weather-box" hidden>
+      <button id="weather" type="button"></button>
+      <div id="forecast" role="tooltip"></div>
+    </div>
     <form id="search">
       <input id="q" type="search" placeholder="Search the web" autocomplete="off" spellcheck="false">
       <ul id="suggest" role="listbox" aria-label="Suggestions" hidden></ul>
@@ -29,15 +32,17 @@
   <aside id="settings-drawer" class="drawer settings" aria-label="Settings">
     <div class="drawer-head">
       <h2>Settings</h2>
-      <a class="full-settings" href="settings.html" title="Open the settings page">Open in a tab</a>
       <button class="close" type="button" title="Close">×</button>
     </div>
     <div class="drawer-body"></div>
   </aside>
   <aside id="history-drawer" class="drawer" aria-label="History">
     <div class="drawer-head">
-      <a class="full-history" href="history.html" title="Open the full history page">All history</a>
       <button class="close" type="button" title="Close">×</button>
+    </div>
+    <div class="drawer-tools">
+      <input class="history-q" type="search" placeholder="Search history" autocomplete="off" spellcheck="false">
+      <button class="clear-history" type="button"></button>
     </div>
     <div class="drawer-body">
       <div class="list"></div>

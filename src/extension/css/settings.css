@@ -2,27 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-/* Settings page (on top of newtab.css's colors). */
-
-main.settings {
-  max-width: 720px;
-  padding: 48px 24px 64px;
-}
-
-.settings header {
-  margin-bottom: 28px;
-}
-
-.settings h1 {
-  font-size: 24px;
-  margin: 0;
-}
-
-.lead {
-  color: var(--muted);
-  font-size: 13px;
-  margin: 4px 0 0;
-}
+/* Settings, in the new tab page's settings drawer (on top of newtab.css's colors). */
 
 .card {
   background: var(--tile);

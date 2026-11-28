@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// Weather for the new tab page (settings page: place, units, effects). The
-// last reading is kept for 15 minutes, so new tabs don't each ask Open-Meteo.
+// Weather for the new tab page (settings: place, units, effects). The last
+// reading is kept for an hour, so new tabs don't each ask Open-Meteo.
 
 import { base } from "../base";
 import { condition, EFFECT_NAMES, EFFECTS, type Condition, type Effect } from "./conditions";
@@ -14,7 +14,7 @@ export type { Place } from "./open-meteo";
 
 export const WEATHER_KEY = "__macc_weather";
 const CACHE_KEY = "__macc_weather_cache";
-const FRESH_MS = 15 * 60 * 1000;
+export const FRESH_MS = 60 * 60 * 1000;
 
 export interface WeatherSettings {
   show: boolean;
@@ -57,7 +57,9 @@ async function load(force: boolean): Promise<Weather | null> {
   const unit = unitOf(s);
   const key = `${s.place.latitude},${s.place.longitude},${unit}`;
   const { [CACHE_KEY]: cached } = (await base.storage.local.get(CACHE_KEY)) as { [CACHE_KEY]?: { key: string; weather: Weather } };
-  if (!force && cached?.key === key && Date.now() - cached.weather.fetchedAt < FRESH_MS) return { ...cached.weather, place: s.place };
+  // Readings from before forecasts were kept count as stale.
+  const usable = cached?.key === key && Array.isArray(cached.weather.reading.hourly);
+  if (!force && usable && Date.now() - cached!.weather.fetchedAt < FRESH_MS) return { ...cached!.weather, place: s.place };
   try {
     const reading = await forecast(s.place.latitude, s.place.longitude, unit);
     const weather: Weather = { place: s.place, unit, reading, condition: condition(reading.code, reading.isDay), fetchedAt: Date.now() };
@@ -65,7 +67,7 @@ async function load(force: boolean): Promise<Weather | null> {
     return weather;
   } catch (e) {
     // Offline or Open-Meteo down: an older reading beats none.
-    if (cached?.key === key) return { ...cached.weather, place: s.place };
+    if (usable) return { ...cached!.weather, place: s.place };
     throw e;
   }
 }

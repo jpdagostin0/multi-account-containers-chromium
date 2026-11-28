@@ -17,7 +17,8 @@ import { setUpSuggestions } from "./suggestions";
 import { section } from "./sections";
 
 const page = backgroundPage();
-setUpAmbient(page.__maccWeather, page.__maccWallpaper);
+// First, so the wallpaper is up before the rest of the page.
+setUpAmbient(page.__maccWeather, page.__maccWallpaper, (section) => openSettings(section));
 const top = page.__maccTopSites;
 const me = await ff().tabs.getCurrent();
 const myN = idOf(me?.cookieStoreId ?? DEFAULT);
@@ -34,8 +35,14 @@ setUpSuggestions({
   search: page.__maccSearch, hist: page.__maccHistory, top, go,
 });
 setUpContainerTabs(containers, myN, me.id!, top);
-setUpHistoryDrawer(containers, myN, me.id!, page.__maccHistory, top);
-setUpSettingsDrawer(page);
+const openHistory = setUpHistoryDrawer(containers, myN, me.id!, page.__maccHistory, top);
+const openSettings = setUpSettingsDrawer(page);
+
+// #settings, #settings=<section id>, #history, #history=<container number>: open that drawer
+// (the extension's options page and the toolbar button's history menu item land here).
+const [route, arg] = location.hash.slice(1).split("=");
+if (route === "settings") openSettings(arg);
+else if (route === "history") openHistory(arg ? Number(arg) : undefined);
 
 const lists = await top.list(16);
 const root = document.getElementById("sections")!;

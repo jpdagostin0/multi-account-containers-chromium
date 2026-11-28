@@ -144,20 +144,25 @@ main {
   padding: 1px 8px;
 }
 
+/* Each container's sites, grouped on its color behind a thick, see-through border. */
 .container-section {
-  margin-bottom: 32px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--c, var(--muted)) 14%, color-mix(in srgb, var(--tile) 80%, transparent));
+  background-clip: padding-box;
+  border: 6px solid color-mix(in srgb, var(--c, var(--muted)) 32%, transparent);
+  margin-bottom: 24px;
+  padding: 16px 18px 18px;
 }
 
 .container-section h2 {
   align-items: center;
-  border-inline-start: 3px solid var(--c, var(--muted));
   display: flex;
   font-size: 14px;
   font-weight: 600;
   gap: 8px;
   margin: 0 0 14px;
   min-block-size: 20px;
-  padding-inline-start: 10px;
 }
 
 .ident-icon {
@@ -300,15 +305,6 @@ main {
   transition: max-inline-size var(--drawer-time) var(--drawer-ease);
 }
 
-#container-tabs {
-  transition: max-inline-size var(--drawer-time) var(--drawer-ease), opacity 250ms;
-}
-
-.settings-open #container-tabs {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .history-open #container-tabs {
   max-inline-size: calc(100vw - max(30vw, 340px) - 32px);
 }
@@ -430,6 +426,8 @@ main {
 :root {
   --drawer-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --drawer-time: 420ms;
+  /* The container tabs' strip. */
+  --top-bar: 52px;
 }
 
 main {
@@ -468,11 +466,14 @@ body {
   transform: translateX(100%);
 }
 
+/* Under the container tabs, which stay usable while it's open. */
 #settings-drawer {
+  border-block-start: 1px solid var(--border);
   border-inline-end: 1px solid var(--border);
   box-shadow: 16px 0 40px rgb(0 0 0 / 0.14);
+  inset-block-start: var(--top-bar);
   inset-inline-start: 0;
-  transform: translateX(-100%);
+  transform: translateX(calc(-100% - 40px));
 }
 
 .history-open #history-drawer,
@@ -513,30 +514,59 @@ body {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.full-history,
-.full-settings {
-  color: var(--muted);
-  font-size: 12.5px;
-  margin-inline-start: auto;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.full-history:hover,
-.full-settings:hover {
-  color: var(--fg);
-  text-decoration: underline;
-}
-
 .drawer-head .close {
   background: none;
   border: 0;
   block-size: 28px;
   color: var(--muted);
   cursor: pointer;
+  flex: none;
   font-size: 18px;
   inline-size: 28px;
   line-height: 1;
+  margin-inline-start: auto;
+}
+
+.drawer-tools {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+}
+
+.history-q {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: inherit;
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  min-inline-size: 0;
+  padding: 6px 10px;
+}
+
+.history-q:focus {
+  border-color: var(--accent, #0061e0);
+  outline: none;
+}
+
+.clear-history {
+  background: none;
+  border: 1px solid var(--border);
+  color: #d70022;
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: 12.5px;
+  max-inline-size: 45%;
+  overflow: hidden;
+  padding: 6px 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clear-history:hover {
+  background: color-mix(in srgb, #d70022 10%, transparent);
+  border-color: #d70022;
 }
 
 .drawer-head .close:hover {

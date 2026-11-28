@@ -175,7 +175,7 @@
     "/img/multiaccountcontainer-16.svg"
   ],
   "options_ui": {
-    "page": "settings.html",
+    "page": "newtab.html#settings",
     "browser_style": true
   }
 }

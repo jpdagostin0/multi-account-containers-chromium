@@ -5,8 +5,8 @@
 // Per-container history and saved favicons (Chromium port, background page).
 //
 // Chromium's history is shared by every container, so the extension keeps
-// its own (record.ts) in IndexedDB, with the site icons the new tab and
-// history pages show (site-icons.ts).
+// its own (record.ts) in IndexedDB, with the site icons the new tab page and
+// its history drawer show (site-icons.ts).
 
 import { clear, prune, remove } from "./delete";
 import "./menu";

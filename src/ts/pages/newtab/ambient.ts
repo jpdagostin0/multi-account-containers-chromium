@@ -3,7 +3,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // Wallpaper, weather effects and the weather line, kept up to date with the
-// settings page and the weather (refreshed every 15 minutes).
+// settings and the weather (readings are kept an hour).
 
 import type { Weather, WeatherApi, WeatherSettings } from "../../background/weather";
 import { SKY_OF } from "../../background/weather/conditions";
@@ -11,7 +11,7 @@ import type { Wallpaper, WallpaperApi } from "../../background/wallpaper";
 import { createScene, type SceneSpec } from "./scene";
 import { renderWeather } from "./weather";
 
-const REFRESH_MS = 15 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
 
 function sceneSpec(wp: Wallpaper, s: WeatherSettings, w: Weather | null): SceneSpec | null {
   const hour = new Date().getHours();
@@ -22,18 +22,22 @@ function sceneSpec(wp: Wallpaper, s: WeatherSettings, w: Weather | null): SceneS
   return { effect, density, sky, isDay };
 }
 
-export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi): void {
+export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi, openSettings: (section: string) => void): void {
   const root = document.documentElement;
   const image = document.getElementById("wallpaper")!;
   const dim = document.getElementById("wallpaper-dim")!;
   const scene = createScene(document.getElementById("scene") as HTMLCanvasElement);
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
   async function update(force = false): Promise<void> {
     const [wp, s] = await Promise.all([wallpaper.get(), weather.settings()]);
     let w: Weather | null = null, failed = false;
     if (s.place && (s.show || s.effects === "auto")) {
       try { w = await weather.current(force); } catch { failed = true; }
     }
+    // Again once this reading is an hour old (it may be from another tab), or in a few minutes after a failure.
+    clearTimeout(timer);
+    timer = setTimeout(update, w ? Math.max(60_000, w.fetchedAt + HOUR - Date.now() + 5000) : failed ? 5 * 60_000 : HOUR);
     renderWeather(s, w, failed);
     image.hidden = wp.kind !== "image" || !wp.image;
     image.style.backgroundImage = image.hidden ? "" : `url(${JSON.stringify(wp.image)})`;
@@ -47,15 +51,9 @@ export function setUpAmbient(weather: WeatherApi, wallpaper: WallpaperApi): void
     root.dataset.effect = scene.canvas.hidden ? "" : spec?.effect ?? "";
   }
 
-  // The weather line opens the settings drawer at the weather section.
-  document.getElementById("weather")!.addEventListener("click", () => {
-    const drawer = document.getElementById("settings-drawer")!;
-    if (!root.classList.contains("settings-open")) document.getElementById("settings-toggle")!.click();
-    drawer.querySelector("#weather-settings")?.scrollIntoView({ block: "start" });
-  });
 
+  document.getElementById("weather")!.addEventListener("click", () => openSettings("weather-settings"));
   update();
-  setInterval(() => update(), REFRESH_MS);
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && (changes[weather.storageKey] || changes[wallpaper.storageKey])) update();
   });
